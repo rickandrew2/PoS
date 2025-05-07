@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{layout/main}">
+<head>
+    <title>POS - Sales Report</title>
+    <style>
+        @media print {
+            .no-print {
+                display: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div layout:fragment="content">
+        <div class="row mb-4 no-print">
+            <div class="col">
+                <h2>Sales Report</h2>
+            </div>
+            <div class="col text-end">
+                <button onclick="window.print()" class="btn btn-primary me-2">Print Report</button>
+                <a href="/dashboard" class="btn btn-secondary">Back to Dashboard</a>
+            </div>
+        </div>
+
+        <div class="card shadow-sm mb-4">
+            <div class="card-body">
+                <h4 class="card-title mb-4" th:text="${reportType} + ' Sales Report'">Report Title</h4>
+                
+                <!-- Date Range -->
+                <div class="mb-4">
+                    <h5>Report Period</h5>
+                    <p th:if="${reportType == 'Daily'}">
+                        Date: <span th:text="${#temporals.format(reportDate, 'MMMM dd, yyyy')}">Date</span>
+                    </p>
+                    <p th:if="${reportType == 'Weekly'}">
+                        Period: <span th:text="${#temporals.format(reportStartDate, 'MMMM dd, yyyy')}">Start Date</span> to 
+                        <span th:text="${#temporals.format(reportEndDate, 'MMMM dd, yyyy')}">End Date</span>
+                    </p>
+                </div>
+
+                <!-- Summary Statistics -->
+                <div class="row mb-4">
+                    <div class="col-md-3">
+                        <div class="card bg-primary text-white">
+                            <div class="card-body">
+                                <h6 class="card-title">Total Transactions</h6>
+                                <h3 th:text="${report.totalTransactions}">0</h3>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="card bg-success text-white">
+                            <div class="card-body">
+                                <h6 class="card-title">Total Sales</h6>
+                                <h3>₱<span th:text="${#numbers.formatDecimal(report.totalAmount, 1, 2)}">0.00</span></h3>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="card bg-info text-white">
+                            <div class="card-body">
+                                <h6 class="card-title">Total VAT</h6>
+                                <h3>₱<span th:text="${#numbers.formatDecimal(report.totalVat, 1, 2)}">0.00</span></h3>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="card bg-warning text-white">
+                            <div class="card-body">
+                                <h6 class="card-title">Total Discounts</h6>
+                                <h3>₱<span th:text="${#numbers.formatDecimal(report.totalDiscount, 1, 2)}">0.00</span></h3>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Discount Statistics -->
+                <div class="row mb-4">
+                    <div class="col-md-6">
+                        <div class="card">
+                            <div class="card-body">
+                                <h5 class="card-title">Discount Statistics</h5>
+                                <div class="table-responsive">
+                                    <table class="table">
+                                        <tr>
+                                            <td>PWD Discount Transactions</td>
+                                            <td th:text="${report.pwdTransactions}">0</td>
+                                        </tr>
+                                        <tr>
+                                            <td>Senior Citizen Discount Transactions</td>
+                                            <td th:text="${report.seniorTransactions}">0</td>
+                                        </tr>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="card">
+                            <div class="card-body">
+                                <h5 class="card-title">Customer Statistics</h5>
+                                <div class="table-responsive">
+                                    <table class="table">
+                                        <tr>
+                                            <td>Total Unique Customers</td>
+                                            <td th:text="${report.totalCustomers}">0</td>
+                                        </tr>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Transaction Details -->
+                <div class="card">
+                    <div class="card-body">
+                        <h5 class="card-title">Transaction Details</h5>
+                        <div class="table-responsive">
+                            <table class="table">
+                                <thead>
+                                    <tr>
+                                        <th>Receipt #</th>
+                                        <th>Date</th>
+                                        <th>Customer</th>
+                                        <th>Subtotal</th>
+                                        <th>VAT</th>
+                                        <th>Discount</th>
+                                        <th>Total</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr th:each="transaction : ${report.transactions}">
+                                        <td th:text="${transaction.receiptNumber}">000000</td>
+                                        <td th:text="${#temporals.format(transaction.transactionDate, 'MMM dd, yyyy HH:mm')}">Date</td>
+                                        <td th:text="${transaction.customer != null ? transaction.customer.name : (transaction.customerType != null ? transaction.customerType.title : 'Walk-in')}">Customer</td>
+                                        <td>₱<span th:text="${#numbers.formatDecimal(transaction.subtotal, 1, 2)}">0.00</span></td>
+                                        <td>₱<span th:text="${#numbers.formatDecimal(transaction.vatAmount, 1, 2)}">0.00</span></td>
+                                        <td>₱<span th:text="${#numbers.formatDecimal(transaction.discountAmount, 1, 2)}">0.00</span></td>
+                                        <td>₱<span th:text="${#numbers.formatDecimal(transaction.totalAmount, 1, 2)}">0.00</span></td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html> 

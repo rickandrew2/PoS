@@ -2,8 +2,10 @@ package com.pos.controller;
 
 import com.pos.dto.UserDTO;
 import com.pos.service.UserService;
+import com.pos.service.AuditLogService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
@@ -15,10 +17,12 @@ import java.util.List;
 public class UserController {
 
     private final UserService userService;
+    private final AuditLogService auditLogService;
 
     @Autowired
-    public UserController(UserService userService) {
+    public UserController(UserService userService, AuditLogService auditLogService) {
         this.userService = userService;
+        this.auditLogService = auditLogService;
     }
 
     @GetMapping
@@ -33,7 +37,10 @@ public class UserController {
     @PreAuthorize("hasRole('ADMINISTRATOR')")
     @ResponseBody
     public UserDTO createUser(@RequestBody UserDTO userDTO) {
-        return userService.createUser(userDTO);
+        UserDTO created = userService.createUser(userDTO);
+        String username = SecurityContextHolder.getContext().getAuthentication().getName();
+        auditLogService.logAction(username, "CREATE_USER", "Created user: " + created.getUsername());
+        return created;
     }
 
     @PutMapping("/api/users/{id}")
@@ -41,7 +48,10 @@ public class UserController {
     @ResponseBody
     public UserDTO updateUser(@PathVariable Long id, @RequestBody UserDTO userDTO) {
         userDTO.setId(id);
-        return userService.updateUser(userDTO);
+        UserDTO updated = userService.updateUser(userDTO);
+        String username = SecurityContextHolder.getContext().getAuthentication().getName();
+        auditLogService.logAction(username, "UPDATE_USER", "Updated user: " + updated.getUsername());
+        return updated;
     }
 
     @DeleteMapping("/api/users/{id}")
@@ -49,5 +59,7 @@ public class UserController {
     @ResponseBody
     public void deleteUser(@PathVariable Long id) {
         userService.deleteUser(id);
+        String username = SecurityContextHolder.getContext().getAuthentication().getName();
+        auditLogService.logAction(username, "DELETE_USER", "Deleted user with ID: " + id);
     }
 } 

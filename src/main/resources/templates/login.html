@@ -5,40 +5,85 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>POS - Login</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://www.google.com/recaptcha/api.js" async defer></script>
     <style>
         body {
-            height: 100vh;
+            min-height: 100vh;
+            background: linear-gradient(135deg, #e0e7ff 0%, #f8fafc 100%);
             display: flex;
             align-items: center;
-            background-color: #f8f9fa;
+            justify-content: center;
         }
         .login-container {
-            max-width: 400px;
+            max-width: 420px;
             width: 100%;
-            padding: 15px;
             margin: auto;
         }
         .card {
             border: none;
-            border-radius: 10px;
-            box-shadow: 0 0 20px rgba(0,0,0,0.1);
+            border-radius: 18px;
+            box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.15);
+            background: #fff;
         }
         .card-header {
-            background-color: #fff;
-            border-bottom: none;
+            background: linear-gradient(90deg, #6366f1 0%, #60a5fa 100%);
+            border-top-left-radius: 18px;
+            border-top-right-radius: 18px;
             text-align: center;
-            padding: 20px;
+            padding: 32px 20px 20px 20px;
         }
         .card-header h3 {
             margin: 0;
-            color: #333;
+            color: #fff;
+            font-weight: 700;
+            letter-spacing: 1px;
+        }
+        .card-body {
+            padding: 2rem 2rem 1.5rem 2rem;
+        }
+        .form-label {
+            font-weight: 500;
+            color: #374151;
+        }
+        .form-control {
+            border-radius: 8px;
+            border: 1px solid #d1d5db;
+        }
+        .input-group-text {
+            background: #f3f4f6;
+            border-radius: 0 8px 8px 0;
+            border: 1px solid #d1d5db;
+            cursor: pointer;
         }
         .btn-primary {
             width: 100%;
             padding: 10px;
+            border-radius: 8px;
+            background: linear-gradient(90deg, #6366f1 0%, #60a5fa 100%);
+            border: none;
+            font-weight: 600;
+            letter-spacing: 1px;
+            transition: background 0.2s;
+        }
+        .btn-primary:hover {
+            background: linear-gradient(90deg, #60a5fa 0%, #6366f1 100%);
         }
         .alert {
             margin-bottom: 15px;
+        }
+        .g-recaptcha {
+            margin-bottom: 18px;
+        }
+        .text-muted {
+            color: #6b7280 !important;
+        }
+        .show-password-btn {
+            border: none;
+            background: transparent;
+            color: #6366f1;
+            font-size: 1.2rem;
+            padding: 0 8px;
+            cursor: pointer;
         }
     </style>
 </head>
@@ -50,19 +95,25 @@
             </div>
             <div class="card-body">
                 <div th:if="${param.error}" class="alert alert-danger">
-                    Invalid username or password
+                    Invalid username or password.
                 </div>
                 <div th:if="${param.logout}" class="alert alert-success">
-                    You have been logged out successfully
+                    You have been logged out.
                 </div>
-                <form th:action="@{/login}" method="post">
+                <form method="post" action="/login">
+                    <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}" />
                     <div class="mb-3">
                         <label for="username" class="form-label">Username</label>
-                        <input type="text" class="form-control" id="username" name="username" required autofocus>
+                        <input type="text" class="form-control" id="username" name="username" required autofocus autocomplete="username">
                     </div>
                     <div class="mb-3">
                         <label for="password" class="form-label">Password</label>
-                        <input type="password" class="form-control" id="password" name="password" required>
+                        <div class="input-group">
+                            <input type="password" class="form-control" id="password" name="password" required autocomplete="current-password">
+                            <button type="button" class="show-password-btn input-group-text" tabindex="-1" onclick="togglePassword()" aria-label="Show password">
+                                <span id="showPasswordIcon" class="bi bi-eye"></span>
+                            </button>
+                        </div>
                     </div>
                     <button type="submit" class="btn btn-primary">Login</button>
                 </form>
@@ -73,5 +124,22 @@
         </div>
     </div>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- Bootstrap Icons CDN for eye icon -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
+    <script>
+        function togglePassword() {
+            const passwordInput = document.getElementById('password');
+            const icon = document.getElementById('showPasswordIcon');
+            if (passwordInput.type === 'password') {
+                passwordInput.type = 'text';
+                icon.classList.remove('bi-eye');
+                icon.classList.add('bi-eye-slash');
+            } else {
+                passwordInput.type = 'password';
+                icon.classList.remove('bi-eye-slash');
+                icon.classList.add('bi-eye');
+            }
+        }
+    </script>
 </body>
-</html> </html> 
+</html> 

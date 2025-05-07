@@ -30,6 +30,10 @@ public class Transaction {
     private User cashier;
 
     @ManyToOne
+    @JoinColumn(name = "customer_type_id")
+    private CustomerType customerType;
+
+    @ManyToOne
     @JoinColumn(name = "customer_id")
     private Customer customer;
 

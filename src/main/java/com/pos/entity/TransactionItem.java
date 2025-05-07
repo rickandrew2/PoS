@@ -32,4 +32,7 @@ public class TransactionItem {
 
     @Column(nullable = false)
     private BigDecimal subtotal;
+
+    @Column(nullable = false)
+    private BigDecimal vatAmount;
 } 

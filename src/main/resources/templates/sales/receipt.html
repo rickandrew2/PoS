@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Receipt #[[${transaction.receiptNumber}]]</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        @media print {
+            .no-print {
+                display: none !important;
+            }
+            body {
+                padding: 0;
+                margin: 0;
+            }
+            .receipt-container {
+                width: 80mm !important;
+                padding: 5mm !important;
+                margin: 0 !important;
+                box-shadow: none !important;
+            }
+        }
+        .receipt-container {
+            width: 80mm;
+            margin: 20px auto;
+            padding: 10mm;
+            background: white;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+        .receipt-header {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        .receipt-info {
+            margin-bottom: 20px;
+        }
+        .receipt-items {
+            margin-bottom: 20px;
+        }
+        .receipt-totals {
+            margin-top: 20px;
+            border-top: 1px dashed #ddd;
+            padding-top: 10px;
+        }
+        .receipt-footer {
+            text-align: center;
+            margin-top: 20px;
+            font-size: 0.9em;
+        }
+    </style>
+</head>
+<body class="bg-light">
+    <div class="container">
+        <div class="receipt-container">
+            <div class="receipt-header">
+                <h4>POS SYSTEM</h4>
+                <p>THIS SERVES AS AN OFFICIAL RECEIPT</p>
+                <p>123 Main Street, City<br>
+                Tel: (123) 456-7890</p>
+            </div>
+
+            <div class="receipt-info">
+                <div>Receipt #: <span th:text="${transaction.receiptNumber}">000000</span></div>
+                <div>Date: <span th:text="${#temporals.format(transaction.transactionDate, 'MMM dd, yyyy HH:mm')}">Jan 01, 2024 00:00</span></div>
+                <div>Cashier: <span th:text="${transaction.cashier.fullName}">Cashier Name</span></div>
+                <div th:if="${transaction.customerType != null}">
+                    Customer Type: <span th:text="${transaction.customerType.title}">Customer Type</span>
+                </div>
+            </div>
+
+            <div class="receipt-items">
+                <table class="table table-sm">
+                    <thead>
+                        <tr>
+                            <th>Item</th>
+                            <th>Qty</th>
+                            <th>Price</th>
+                            <th>Total</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr th:each="item : ${transaction.items}">
+                            <td th:text="${item.product.name}">Product Name</td>
+                            <td th:text="${item.quantity}">1</td>
+                            <td>₱<span th:text="${#numbers.formatDecimal(item.unitPrice, 1, 2)}">0.00</span></td>
+                            <td>₱<span th:text="${#numbers.formatDecimal(item.subtotal, 1, 2)}">0.00</span></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="receipt-totals">
+                <div class="d-flex justify-content-between">
+                    <span>Subtotal:</span>
+                    <span>₱<span th:text="${#numbers.formatDecimal(transaction.subtotal, 1, 2)}">0.00</span></span>
+                </div>
+                <div class="d-flex justify-content-between" th:if="${transaction.vatIncluded}">
+                    <span>VAT (12%):</span>
+                    <span>₱<span th:text="${#numbers.formatDecimal(transaction.vatAmount, 1, 2)}">0.00</span></span>
+                </div>
+                <div class="d-flex justify-content-between" th:if="${transaction.discountAmount > 0}">
+                    <span>Discount:</span>
+                    <span>₱<span th:text="${#numbers.formatDecimal(transaction.discountAmount, 1, 2)}">0.00</span></span>
+                </div>
+                <div class="d-flex justify-content-between fw-bold">
+                    <span>Total Amount:</span>
+                    <span>₱<span th:text="${#numbers.formatDecimal(transaction.totalAmount, 1, 2)}">0.00</span></span>
+                </div>
+            </div>
+
+            <div class="receipt-footer">
+                <p>Thank you for your purchase!</p>
+                <p>Please come again</p>
+            </div>
+        </div>
+
+        <div class="text-center mb-4 no-print">
+            <button onclick="window.print()" class="btn btn-primary me-2">Print Receipt</button>
+            <a href="/sales" class="btn btn-secondary">Back to Sales</a>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html> 

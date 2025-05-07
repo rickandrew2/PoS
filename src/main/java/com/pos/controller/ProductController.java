@@ -8,6 +8,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.security.core.context.SecurityContextHolder;
 
 import java.util.List;
 import java.util.Map;
@@ -78,7 +79,8 @@ public class ProductController {
             throw new IllegalArgumentException("Invalid category ID");
         }
 
-        return ResponseEntity.ok(productService.createProduct(product));
+        String username = SecurityContextHolder.getContext().getAuthentication().getName();
+        return ResponseEntity.ok(productService.createProduct(product, username));
     }
 
     @PutMapping("/{id}")
@@ -107,13 +109,15 @@ public class ProductController {
             existingProduct.setCategory(category);
         }
 
-        return ResponseEntity.ok(productService.updateProduct(id, existingProduct));
+        String username = SecurityContextHolder.getContext().getAuthentication().getName();
+        return ResponseEntity.ok(productService.updateProduct(id, existingProduct, username));
     }
 
     @DeleteMapping("/{id}")
     @PreAuthorize("hasAnyRole('ADMINISTRATOR', 'INVENTORY_PERSONNEL')")
     public ResponseEntity<Void> deleteProduct(@PathVariable Long id) {
-        productService.deleteProduct(id);
+        String username = SecurityContextHolder.getContext().getAuthentication().getName();
+        productService.deleteProduct(id, username);
         return ResponseEntity.ok().build();
     }
 
@@ -136,7 +140,8 @@ public class ProductController {
             }
 
             product.setStockQuantity(newStock);
-            return ResponseEntity.ok(productService.updateProduct(id, product));
+            String username = SecurityContextHolder.getContext().getAuthentication().getName();
+            return ResponseEntity.ok(productService.updateProduct(id, product, username));
         } catch (NumberFormatException e) {
             throw new IllegalArgumentException("Invalid stock adjustment value");
         }

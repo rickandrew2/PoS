@@ -4,6 +4,7 @@ import com.pos.entity.Category;
 import com.pos.entity.Product;
 import com.pos.service.CategoryService;
 import com.pos.service.ProductService;
+import com.pos.service.AuditLogService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -14,6 +15,7 @@ import org.springframework.web.multipart.MultipartFile;
 import com.opencsv.CSVReader;
 import com.opencsv.CSVWriter;
 import jakarta.servlet.http.HttpServletResponse;
+import org.springframework.security.core.context.SecurityContextHolder;
 
 import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
@@ -31,6 +33,9 @@ public class InventoryController {
 
     @Autowired
     private CategoryService categoryService;
+
+    @Autowired
+    private AuditLogService auditLogService;
 
     @GetMapping
     @PreAuthorize("hasRole('ADMINISTRATOR') or hasRole('INVENTORY_PERSONNEL')")
@@ -65,15 +70,33 @@ public class InventoryController {
             .orElseThrow(() -> new RuntimeException("Category not found"));
         product.setCategory(category);
 
-        return ResponseEntity.ok(productService.createProduct(product));
+        String username = SecurityContextHolder.getContext().getAuthentication().getName();
+        Product created = productService.createProduct(product, username);
+        return ResponseEntity.ok(created);
     }
 
     @PutMapping("/api/products/{id}")
     @ResponseBody
     public ResponseEntity<Product> updateProduct(@PathVariable Long id, @RequestBody Map<String, Object> payload) {
-        Product product = productService.getProductById(id)
+        Product existingProduct = productService.getProductById(id)
             .orElseThrow(() -> new RuntimeException("Product not found"));
 
+        StringBuilder changes = new StringBuilder();
+        if (!existingProduct.getName().equals(payload.get("name"))) {
+            changes.append("Name: ").append(existingProduct.getName()).append(" -> ").append(payload.get("name")).append("; ");
+        }
+        if (!existingProduct.getDescription().equals(payload.get("description"))) {
+            changes.append("Description changed; ");
+        }
+        if (!existingProduct.getPrice().equals(new BigDecimal(payload.get("price").toString()))) {
+            changes.append("Price: ").append(existingProduct.getPrice()).append(" -> ").append(payload.get("price")).append("; ");
+        }
+        if (existingProduct.getVatable() != (Boolean) payload.get("vatable")) {
+            changes.append("VAT status: ").append(existingProduct.getVatable() ? "VATable" : "Non-VATable")
+                  .append(" -> ").append((Boolean) payload.get("vatable") ? "VATable" : "Non-VATable").append("; ");
+        }
+
+        Product product = new Product();
         product.setName((String) payload.get("name"));
         product.setDescription((String) payload.get("description"));
         product.setPrice(new BigDecimal(payload.get("price").toString()));
@@ -84,13 +107,16 @@ public class InventoryController {
             .orElseThrow(() -> new RuntimeException("Category not found"));
         product.setCategory(category);
 
-        return ResponseEntity.ok(productService.updateProduct(id, product));
+        String username = SecurityContextHolder.getContext().getAuthentication().getName();
+        Product updated = productService.updateProduct(id, product, username);
+        return ResponseEntity.ok(updated);
     }
 
     @DeleteMapping("/api/products/{id}")
     @ResponseBody
     public ResponseEntity<Void> deleteProduct(@PathVariable Long id) {
-        productService.deleteProduct(id);
+        String username = SecurityContextHolder.getContext().getAuthentication().getName();
+        productService.deleteProduct(id, username);
         return ResponseEntity.ok().build();
     }
 
@@ -98,35 +124,63 @@ public class InventoryController {
     @ResponseBody
     public ResponseEntity<Product> updateStock(@PathVariable Long id, @RequestBody Map<String, Object> payload) {
         int adjustment = Integer.parseInt(payload.get("adjustment").toString());
+        String reason = payload.get("reason") != null ? (String) payload.get("reason") : "Manual adjustment";
         Product product = productService.getProductById(id)
             .orElseThrow(() -> new RuntimeException("Product not found"));
 
-        int newStock = product.getStockQuantity() + adjustment;
-        if (newStock < 0) {
+        int oldQuantity = product.getStockQuantity();
+        int newQuantity = oldQuantity + adjustment;
+        if (newQuantity < 0) {
             throw new RuntimeException("Insufficient stock");
         }
 
-        product.setStockQuantity(newStock);
-        return ResponseEntity.ok(productService.updateProduct(id, product));
+        product.setStockQuantity(newQuantity);
+        String username = SecurityContextHolder.getContext().getAuthentication().getName();
+        Product updated = productService.updateProduct(id, product, username);
+        System.out.println("AUDIT: Logging stock adjustment for product " + product.getName() + ", old: " + oldQuantity + ", new: " + newQuantity + ", reason: " + reason);
+        auditLogService.logStockAdjustment(username, product.getName(), product.getId(), 
+            oldQuantity, newQuantity, reason);
+        return ResponseEntity.ok(updated);
     }
 
     // Category API Endpoints
     @PostMapping("/api/categories")
     @ResponseBody
     public ResponseEntity<Category> createCategory(@RequestBody Category category) {
-        return ResponseEntity.ok(categoryService.createCategory(category));
+        Category created = categoryService.createCategory(category);
+        String username = SecurityContextHolder.getContext().getAuthentication().getName();
+        auditLogService.logCategoryCreation(username, created.getName(), created.getId());
+        return ResponseEntity.ok(created);
     }
 
     @PutMapping("/api/categories/{id}")
     @ResponseBody
     public ResponseEntity<Category> updateCategory(@PathVariable Long id, @RequestBody Category category) {
-        return ResponseEntity.ok(categoryService.updateCategory(id, category));
+        Category existingCategory = categoryService.getCategoryById(id)
+            .orElseThrow(() -> new RuntimeException("Category not found"));
+
+        StringBuilder changes = new StringBuilder();
+        if (!existingCategory.getName().equals(category.getName())) {
+            changes.append("Name: ").append(existingCategory.getName()).append(" -> ").append(category.getName()).append("; ");
+        }
+        if (!existingCategory.getDescription().equals(category.getDescription())) {
+            changes.append("Description changed; ");
+        }
+
+        Category updated = categoryService.updateCategory(id, category);
+        String username = SecurityContextHolder.getContext().getAuthentication().getName();
+        auditLogService.logCategoryUpdate(username, updated.getName(), updated.getId(), changes.toString());
+        return ResponseEntity.ok(updated);
     }
 
     @DeleteMapping("/api/categories/{id}")
     @ResponseBody
     public ResponseEntity<Void> deleteCategory(@PathVariable Long id) {
+        Category category = categoryService.getCategoryById(id)
+            .orElseThrow(() -> new RuntimeException("Category not found"));
         categoryService.deleteCategory(id);
+        String username = SecurityContextHolder.getContext().getAuthentication().getName();
+        auditLogService.logCategoryDeletion(username, category.getName(), category.getId());
         return ResponseEntity.ok().build();
     }
 
@@ -162,40 +216,30 @@ public class InventoryController {
                 });
             }
         }
+        String username = SecurityContextHolder.getContext().getAuthentication().getName();
+        auditLogService.logBulkExport(username, products.size(), "products.csv");
     }
 
     @PostMapping("/api/products/import")
-    @ResponseBody
-    public ResponseEntity<Map<String, Object>> importProducts(@RequestParam("file") MultipartFile file) throws Exception {
-        List<Product> products = new ArrayList<>();
-
+    public ResponseEntity<Void> importProducts(@RequestParam("file") MultipartFile file) throws Exception {
+        List<Product> importedProducts = new ArrayList<>();
+        String username = SecurityContextHolder.getContext().getAuthentication().getName();
         try (CSVReader reader = new CSVReader(new InputStreamReader(file.getInputStream()))) {
-            String[] header = reader.readNext(); // Skip header
             String[] line;
+            reader.readNext(); // Skip header
             while ((line = reader.readNext()) != null) {
-                final String[] currentLine = line;
                 Product product = new Product();
-                product.setName(currentLine[0]);
-                product.setDescription(currentLine[1]);
-                product.setPrice(new BigDecimal(currentLine[2]));
-                
-                Category category = categoryService.getCategoryById(Long.parseLong(currentLine[3]))
-                    .orElseThrow(() -> new RuntimeException("Category not found: " + currentLine[3]));
-                product.setCategory(category);
-                
-                product.setStockQuantity(Integer.parseInt(currentLine[4]));
-                product.setVatable(Boolean.parseBoolean(currentLine[5]));
-                
-                products.add(product);
+                product.setName(line[0]);
+                product.setDescription(line[1]);
+                product.setPrice(new BigDecimal(line[2]));
+                product.setCategory(categoryService.getCategoryById(Long.parseLong(line[3]))
+                    .orElseThrow(() -> new RuntimeException("Category not found")));
+                product.setStockQuantity(Integer.parseInt(line[4]));
+                product.setVatable(Boolean.parseBoolean(line[5]));
+                importedProducts.add(productService.createProduct(product, username));
             }
         }
-
-        for (Product product : products) {
-            productService.createProduct(product);
-        }
-
-        Map<String, Object> response = new HashMap<>();
-        response.put("imported", products.size());
-        return ResponseEntity.ok(response);
+        auditLogService.logBulkImport(username, importedProducts.size(), file.getOriginalFilename());
+        return ResponseEntity.ok().build();
     }
 } 

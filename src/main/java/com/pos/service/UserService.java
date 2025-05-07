@@ -82,10 +82,7 @@ public class UserService implements UserDetailsService {
     }
 
     public void deleteUser(Long id) {
-        User user = userRepository.findById(id)
-                .orElseThrow(() -> new UsernameNotFoundException("User not found"));
-        user.setActive(false);
-        userRepository.save(user);
+        userRepository.deleteById(id);
     }
 
     private UserDTO convertToDTO(User user) {
@@ -103,11 +100,9 @@ public class UserService implements UserDetailsService {
 
     public void logUserAction(User user, String action, String details, String ipAddress) {
         AuditLog log = new AuditLog();
-        log.setUser(user);
+        log.setUsername(user.getUsername());
         log.setAction(action);
-        log.setActionDetails(details);
-        log.setIpAddress(ipAddress);
-        log.setCreatedAt(LocalDateTime.now());
+        log.setDetails(details);
         auditLogRepository.save(log);
     }
 

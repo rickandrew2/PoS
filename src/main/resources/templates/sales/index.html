@@ -1,147 +1,170 @@
 <!DOCTYPE html>
-<html xmlns:th="http://www.thymeleaf.org">
+<html xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{layout/main}">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>POS - Sales</title>
+    <meta name="_csrf" th:content="${_csrf != null ? _csrf.token : ''}"/>
+    <meta name="_csrf_header" th:content="${_csrf != null ? _csrf.headerName : ''}"/>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.7.2/font/bootstrap-icons.css" rel="stylesheet">
     <style>
         .product-card {
             cursor: pointer;
-            transition: transform 0.2s;
+            transition: transform 0.2s, box-shadow 0.2s;
+            border-radius: 0.75rem;
+            box-shadow: 0 1px 4px rgba(44,62,80,0.06);
+            border: 1px solid #e3e6f0;
+            background: #fff;
         }
         .product-card:hover {
-            transform: translateY(-2px);
+            transform: translateY(-2px) scale(1.02);
+            box-shadow: 0 4px 16px rgba(44,62,80,0.10);
+        }
+        .out-of-stock {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+        .category-select {
+            min-width: 180px;
+        }
+        .cart-card {
+            position: sticky;
+            top: 1.5rem;
+        }
+        .cart-totals {
+            background: #f8f9fa;
+            border-radius: 0.75rem;
+            padding: 1rem;
+            margin-bottom: 1rem;
         }
     </style>
 </head>
-<body class="bg-light">
-    <div class="container-fluid mt-4">
-        <div class="row">
-            <!-- Products Section (Left Side) -->
-            <div class="col-md-8">
-                <div class="card shadow-sm mb-4">
-                    <div class="card-body">
-                        <div class="d-flex justify-content-between align-items-center mb-3">
-                            <h4 class="mb-0">Products</h4>
-                            <div class="d-flex gap-2">
-                                <input type="text" id="searchProduct" class="form-control" placeholder="Search products...">
-                                <select id="categoryFilter" class="form-select">
-                                    <option value="">All Categories</option>
-                                    <option th:each="category : ${categories}" 
-                                            th:value="${category.id}"
-                                            th:text="${category.name}">Category</option>
-                                </select>
-                            </div>
+<body>
+<div layout:fragment="content">
+    <div class="row mb-4 no-print">
+        <div class="col">
+            <h2>Sales</h2>
+        </div>
+        <div class="col text-end">
+            <a href="/dashboard" class="btn btn-secondary">Back to Dashboard</a>
+            <th:block th:if="${#authorization.expression('hasRole(''ADMINISTRATOR'')')}">
+                <button class="btn btn-info ms-2" id="viewTransactionHistoryBtn">
+                    <i class="bi bi-clock-history"></i> View Transaction History
+                </button>
+            </th:block>
+        </div>
+    </div>
+    <div class="row">
+        <!-- Products Section (Left Side) -->
+        <div class="col-md-8">
+            <div class="card shadow-sm mb-4">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h4 class="mb-0">Products</h4>
+                        <div class="d-flex gap-2">
+                            <input type="text" id="searchProduct" class="form-control" placeholder="Search products...">
+                            <select id="categoryFilter" class="form-select category-select">
+                                <option value="">All Categories</option>
+                                <option th:each="category : ${categories}"
+                                        th:value="${category.id}"
+                                        th:text="${category.name}">Category</option>
+                            </select>
                         </div>
-                        
-                        <div class="row row-cols-1 row-cols-md-4 g-4" id="productsGrid">
-                            <div th:each="product : ${products}" class="col">
-                                <div class="card h-100 product-card"
-                                     th:data-id="${product.id}"
-                                     th:data-name="${product.name}"
-                                     th:data-price="${product.price}"
-                                     th:data-category-id="${product.category.id}">
-                                    <div class="card-body">
-                                        <h6 class="card-title" th:text="${product.name}">Product Name</h6>
-                                        <p class="card-text">
-                                            <small class="text-muted" th:text="${product.category.name}">Category</small><br>
-                                            <span class="text-primary">₱<span th:text="${#numbers.formatDecimal(product.price, 1, 2)}">0.00</span></span><br>
-                                            <small class="text-muted">Stock: <span th:text="${product.stockQuantity}">0</span></small>
-                                        </p>
-                                    </div>
+                    </div>
+                    <div class="row row-cols-1 row-cols-md-4 g-4" id="productsGrid">
+                        <div th:each="product : ${products}" class="col">
+                            <div class="card h-100 product-card"
+                                 th:data-id="${product.id}"
+                                 th:data-name="${product.name}"
+                                 th:data-price="${product.price}"
+                                 th:data-category-id="${product.category.id}"
+                                 th:classappend="${product.stockQuantity == 0} ? ' text-muted out-of-stock' : ''"
+                                 th:attr="data-out-of-stock=${product.stockQuantity == 0}">
+                                <div class="card-body">
+                                    <h6 class="card-title" th:text="${product.name}">Product Name</h6>
+                                    <p class="card-text">
+                                        <small class="text-muted" th:text="${product.category.name}">Category</small><br>
+                                        <span class="text-primary">₱<span th:text="${#numbers.formatDecimal(product.price, 1, 2)}">0.00</span></span><br>
+                                        <small th:if="${product.stockQuantity > 0}" class="text-muted">Stock: <span th:text="${product.stockQuantity}">0</span></small>
+                                        <small th:if="${product.stockQuantity == 0}" class="text-danger fw-bold">Out of Stock</small>
+                                    </p>
                                 </div>
                             </div>
                         </div>
                     </div>
                 </div>
             </div>
-
-            <!-- Cart Section (Right Side) -->
-            <div class="col-md-4">
-                <div class="card shadow-sm">
-                    <div class="card-body">
-                        <h4 class="mb-3">Current Transaction</h4>
-                        
-                        <!-- Customer Selection -->
-                        <div class="mb-3">
-                            <label for="customerSelect" class="form-label">Customer</label>
-                            <select id="customerSelect" class="form-select">
-                                <option value="">Walk-in Customer</option>
-                                <option th:each="customer : ${customers}"
-                                        th:value="${customer.id}"
-                                        th:text="${customer.name}">Customer Name</option>
-                            </select>
+        </div>
+        <!-- Cart Section (Right Side) -->
+        <div class="col-md-4">
+            <div class="card shadow-sm cart-card">
+                <div class="card-body">
+                    <h4 class="mb-3">Current Transaction</h4>
+                    <!-- Customer Selection -->
+                    <div class="mb-3">
+                        <label for="customerTypeSelect" class="form-label">Customer Type</label>
+                        <select id="customerTypeSelect" class="form-select">
+                            <option th:each="type : ${customerTypeList}"
+                                    th:value="${type.id}"
+                                    th:text="${type.title}"
+                                    th:attr="data-ispwd=${type.isPwd},data-issenior=${type.isSenior}">Type</option>
+                        </select>
+                    </div>
+                    <!-- VAT Option -->
+                    <div class="mb-3">
+                        <div class="form-check">
+                            <input type="checkbox" id="vatIncluded" class="form-check-input" checked>
+                            <label class="form-check-label" for="vatIncluded">VAT (12%)</label>
                         </div>
-
-                        <!-- Discount Options -->
-                        <div id="discountOptions" class="mb-3" style="display: none;">
-                            <div class="form-check">
-                                <input type="checkbox" id="pwdDiscount" class="form-check-input">
-                                <label class="form-check-label" for="pwdDiscount">PWD Discount (20%)</label>
-                            </div>
-                            <div class="form-check">
-                                <input type="checkbox" id="seniorDiscount" class="form-check-input">
-                                <label class="form-check-label" for="seniorDiscount">Senior Citizen Discount (20%)</label>
-                            </div>
+                    </div>
+                    <!-- Cart Items -->
+                    <div class="table-responsive mb-3">
+                        <table class="table table-sm" id="cartItems">
+                            <thead>
+                                <tr>
+                                    <th>Item</th>
+                                    <th>Qty</th>
+                                    <th>Price</th>
+                                    <th>Total</th>
+                                    <th></th>
+                                </tr>
+                            </thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
+                    <!-- Totals -->
+                    <div class="cart-totals">
+                        <div class="d-flex justify-content-between mb-2">
+                            <span>Subtotal:</span>
+                            <span>₱<span id="subtotal">0.00</span></span>
                         </div>
-
-                        <!-- VAT Option -->
-                        <div class="mb-3">
-                            <div class="form-check">
-                                <input type="checkbox" id="vatIncluded" class="form-check-input" checked>
-                                <label class="form-check-label" for="vatIncluded">VAT (12%)</label>
-                            </div>
+                        <div class="d-flex justify-content-between mb-2">
+                            <span>VAT (12%):</span>
+                            <span>₱<span id="vatAmount">0.00</span></span>
                         </div>
-
-                        <!-- Cart Items -->
-                        <div class="table-responsive mb-3">
-                            <table class="table table-sm" id="cartItems">
-                                <thead>
-                                    <tr>
-                                        <th>Item</th>
-                                        <th>Qty</th>
-                                        <th>Price</th>
-                                        <th>Total</th>
-                                        <th></th>
-                                    </tr>
-                                </thead>
-                                <tbody></tbody>
-                            </table>
+                        <div class="d-flex justify-content-between mb-2" id="discountRow">
+                            <span id="discountLabel">Discount:</span>
+                            <span>₱<span id="discountAmount">0.00</span></span>
                         </div>
-
-                        <!-- Totals -->
-                        <div class="mb-3">
-                            <div class="d-flex justify-content-between">
-                                <span>Subtotal:</span>
-                                <span>₱<span id="subtotal">0.00</span></span>
-                            </div>
-                            <div class="d-flex justify-content-between">
-                                <span>VAT (12%):</span>
-                                <span>₱<span id="vatAmount">0.00</span></span>
-                            </div>
-                            <div class="d-flex justify-content-between">
-                                <span>Discount:</span>
-                                <span>₱<span id="discountAmount">0.00</span></span>
-                            </div>
-                            <div class="d-flex justify-content-between fw-bold">
-                                <span>Total:</span>
-                                <span>₱<span id="totalAmount">0.00</span></span>
-                            </div>
+                        <div class="d-flex justify-content-between fw-bold">
+                            <span>Total:</span>
+                            <span>₱<span id="totalAmount">0.00</span></span>
                         </div>
-
-                        <!-- Action Buttons -->
-                        <div class="d-grid gap-2">
-                            <button id="processTransaction" class="btn btn-primary">Process Transaction</button>
-                            <button id="clearCart" class="btn btn-outline-secondary">Clear Cart</button>
-                        </div>
+                    </div>
+                    <!-- Action Buttons -->
+                    <div class="d-grid gap-2">
+                        <button id="processTransaction" class="btn btn-primary">
+                            <i class="bi bi-cash-stack"></i> Process Transaction
+                        </button>
+                        <button id="clearCart" class="btn btn-outline-secondary">
+                            <i class="bi bi-trash"></i> Clear Cart
+                        </button>
                     </div>
                 </div>
             </div>
         </div>
     </div>
-
     <!-- Receipt Modal -->
     <div class="modal fade" id="receiptModal" tabindex="-1">
         <div class="modal-dialog">
@@ -154,15 +177,44 @@
                     <div id="receiptContent"></div>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-primary" onclick="window.print()">Print</button>
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    <button type="button" class="btn btn-primary" onclick="window.print()">
+                        <i class="bi bi-printer"></i> Print
+                    </button>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                        <i class="bi bi-x"></i> Close
+                    </button>
                 </div>
             </div>
         </div>
     </div>
-
-    <!-- Scripts -->
+    <!-- Transaction History Modal -->
+    <div class="modal fade" id="transactionHistoryModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Transaction History</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <table class="table table-striped" id="transactionHistoryTable">
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Receipt #</th>
+                                <th>Customer</th>
+                                <th>Total</th>
+                                <th>Cashier</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <!-- Populated by JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script src="/js/sales.js"></script>
-</body>
-</html> 
+</div> 

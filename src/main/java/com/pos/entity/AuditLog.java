@@ -1,43 +1,42 @@
 package com.pos.entity;
 
-import com.pos.model.User;
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "audit_logs")
+@Table(name = "audit_log")
 public class AuditLog {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    @Column(name = "audit_id")
+    private Long auditId;
 
-    @ManyToOne
-    @JoinColumn(name = "user_id")
-    private User user;
+    @Column(nullable = false)
+    private String username;
 
+    @Column(nullable = false)
     private String action;
-    private String actionDetails;
-    private String ipAddress;
-    
-    @Column(name = "created_at")
-    private LocalDateTime createdAt = LocalDateTime.now();
+
+    @Column(columnDefinition = "TEXT")
+    private String details;
+
+    @Column(name = "timestamp", columnDefinition = "DATETIME")
+    private LocalDateTime timestamp;
+
+    @PrePersist
+    protected void onCreate() {
+        if (timestamp == null) timestamp = LocalDateTime.now();
+    }
 
     // Getters and setters
-    public Long getId() { return id; }
-    public void setId(Long id) { this.id = id; }
-
-    public User getUser() { return user; }
-    public void setUser(User user) { this.user = user; }
-
+    public Long getAuditId() { return auditId; }
+    public void setAuditId(Long auditId) { this.auditId = auditId; }
+    public String getUsername() { return username; }
+    public void setUsername(String username) { this.username = username; }
     public String getAction() { return action; }
     public void setAction(String action) { this.action = action; }
-
-    public String getActionDetails() { return actionDetails; }
-    public void setActionDetails(String actionDetails) { this.actionDetails = actionDetails; }
-
-    public String getIpAddress() { return ipAddress; }
-    public void setIpAddress(String ipAddress) { this.ipAddress = ipAddress; }
-
-    public LocalDateTime getCreatedAt() { return createdAt; }
-    public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
+    public String getDetails() { return details; }
+    public void setDetails(String details) { this.details = details; }
+    public LocalDateTime getTimestamp() { return timestamp; }
+    public void setTimestamp(LocalDateTime timestamp) { this.timestamp = timestamp; }
 } 

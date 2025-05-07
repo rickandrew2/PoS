@@ -24,8 +24,8 @@ public class CustomerService {
         existingCustomer.setEmail(customer.getEmail());
         existingCustomer.setPhoneNumber(customer.getPhoneNumber());
         existingCustomer.setAddress(customer.getAddress());
-        existingCustomer.setIsPwd(customer.getIsPwd());
-        existingCustomer.setIsSenior(customer.getIsSenior());
+        existingCustomer.setPwd(customer.isPwd());
+        existingCustomer.setSenior(customer.isSenior());
         existingCustomer.setUpdatedAt(java.time.LocalDateTime.now());
         
         return customerRepository.save(existingCustomer);

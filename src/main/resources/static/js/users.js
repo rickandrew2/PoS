@@ -1,13 +1,26 @@
-// DataTables initialization
+// Remove DataTables initialization and use a custom search filter
 $(document).ready(function() {
-    $('#usersTable').DataTable({
-        order: [[0, 'asc']],
-        pageLength: 10,
-        language: {
-            search: "Search users:"
+    $('#customUserSearch').on('keyup', function() {
+        var value = this.value.toLowerCase();
+        var anyVisible = false;
+        $('#usersTable tbody tr').each(function() {
+            var rowText = $(this).text().toLowerCase();
+            var match = rowText.indexOf(value) > -1;
+            $(this).toggle(match);
+            if (match) anyVisible = true;
+        });
+        // Remove any existing placeholder
+        $('#usersTable tbody .no-results-row').remove();
+        if (!anyVisible) {
+            var colspan = $('#usersTable thead th').length;
+            $('#usersTable tbody').append('<tr class="no-results-row"><td colspan="' + colspan + '" class="text-center">No employee found.</td></tr>');
         }
     });
 });
+
+// CSRF token setup
+const csrfToken = document.querySelector('meta[name="_csrf"]')?.getAttribute('content');
+const csrfHeader = document.querySelector('meta[name="_csrf_header"]')?.getAttribute('content');
 
 // User Management
 function editUser(button) {
@@ -26,23 +39,40 @@ function editUser(button) {
     modal.show();
 }
 
+// Add a function to show a Bootstrap alert
+function showAlert(message, type = 'success') {
+    const alertPlaceholder = document.getElementById('alertPlaceholder');
+    alertPlaceholder.innerHTML = `
+        <div class="alert alert-${type} alert-dismissible fade show" role="alert">
+            ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    `;
+}
+
 function deleteUser(button) {
     const userId = button.dataset.id;
     const username = button.dataset.username;
 
     if (confirm(`Are you sure you want to delete user ${username}?`)) {
+        let headers = {};
+        if (csrfToken && csrfHeader) {
+            headers[csrfHeader] = csrfToken;
+        }
         fetch(`/users/api/users/${userId}`, {
-            method: 'DELETE'
+            method: 'DELETE',
+            headers: headers
         })
         .then(response => {
             if (!response.ok) {
                 throw new Error('Network response was not ok');
             }
-            location.reload();
+            showAlert('The user was deleted successfully.', 'success');
+            setTimeout(() => location.reload(), 1200);
         })
         .catch(error => {
             console.error('Error:', error);
-            alert('Error deleting user: ' + error.message);
+            showAlert('Error deleting user: ' + error.message, 'danger');
         });
     }
 }
@@ -64,11 +94,16 @@ function saveUser() {
     const url = userId ? `/users/api/users/${userId}` : '/users/api/users';
     const method = userId ? 'PUT' : 'POST';
 
+    let headers = {
+        'Content-Type': 'application/json',
+    };
+    if (csrfToken && csrfHeader) {
+        headers[csrfHeader] = csrfToken;
+    }
+
     fetch(url, {
         method: method,
-        headers: {
-            'Content-Type': 'application/json',
-        },
+        headers: headers,
         body: JSON.stringify(user)
     })
     .then(response => {
