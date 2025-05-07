@@ -100,7 +100,7 @@
                 <div th:if="${param.logout}" class="alert alert-success">
                     You have been logged out.
                 </div>
-                <form method="post" action="/login">
+                <form method="post" action="/login" id="loginForm">
                     <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}" />
                     <div class="mb-3">
                         <label for="username" class="form-label">Username</label>
@@ -114,6 +114,9 @@
                                 <span id="showPasswordIcon" class="bi bi-eye"></span>
                             </button>
                         </div>
+                    </div>
+                    <div class="mb-3">
+                        <div class="g-recaptcha" data-sitekey="6LeTRTErAAAAAHd0XhsLWhhYa7Dcz5PlD-L_1u56"></div>
                     </div>
                     <button type="submit" class="btn btn-primary">Login</button>
                 </form>
@@ -140,6 +143,14 @@
                 icon.classList.add('bi-eye');
             }
         }
+
+        document.getElementById('loginForm').addEventListener('submit', function(e) {
+            const recaptchaResponse = grecaptcha.getResponse();
+            if (!recaptchaResponse) {
+                e.preventDefault();
+                alert('Please complete the reCAPTCHA verification.');
+            }
+        });
     </script>
 </body>
 </html> 

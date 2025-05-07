@@ -26,6 +26,12 @@ $(document).ready(function() {
     });
 });
 
+// CSRF token helper
+function getCsrfToken() {
+    const input = document.querySelector('input[name="_csrf"]');
+    return input ? input.value : '';
+}
+
 // Product Management
 function editProduct(button) {
     const productId = button.dataset.id;
@@ -60,7 +66,10 @@ function deleteProduct(button) {
         button.disabled = true;
         
         fetch(`/api/products/${productId}`, {
-            method: 'DELETE'
+            method: 'DELETE',
+            headers: {
+                'X-CSRF-TOKEN': getCsrfToken()
+            }
         })
         .then(response => {
             if (!response.ok) {
@@ -139,7 +148,8 @@ function saveProduct() {
     fetch(url, {
         method: method,
         headers: {
-            'Content-Type': 'application/json'
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': getCsrfToken()
         },
         body: JSON.stringify(product)
     })
@@ -391,7 +401,8 @@ function updateStock() {
     fetch(`/api/products/${productId}/stock`, {
         method: 'PUT',
         headers: {
-            'Content-Type': 'application/json'
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': getCsrfToken()
         },
         body: JSON.stringify({ adjustment: adjustment })
     })
