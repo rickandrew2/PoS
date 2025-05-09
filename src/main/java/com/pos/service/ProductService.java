@@ -93,4 +93,8 @@ public class ProductService {
         product.setStockQuantity(newStock);
         productRepository.save(product);
     }
+
+    public long getTotalProducts() {
+        return productRepository.countByActiveTrue();
+    }
 } 

@@ -41,7 +41,8 @@ public class SecurityConfig {
             .csrf(csrf -> csrf
                 .csrfTokenRepository(CookieCsrfTokenRepository.withHttpOnlyFalse())
                 .csrfTokenRequestHandler(requestHandler)
-                .ignoringRequestMatchers("/api/**"))
+                .ignoringRequestMatchers("/api/**", "/inventory/api/**")
+            )
             .cors(cors -> cors.configurationSource(corsConfigurationSource()))
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/css/**", "/js/**", "/images/**").permitAll()
@@ -51,6 +52,7 @@ public class SecurityConfig {
                 .requestMatchers("/admin/**", "/users/**").hasRole("ADMINISTRATOR")
                 .requestMatchers("/inventory/**").hasAnyRole("ADMINISTRATOR", "INVENTORY_PERSONNEL")
                 .requestMatchers("/sales/**").hasAnyRole("ADMINISTRATOR", "CASHIER")
+                .requestMatchers("/reports/**").hasAnyRole("ADMINISTRATOR", "CASHIER")
                 .anyRequest().authenticated()
             )
             .formLogin(form -> form

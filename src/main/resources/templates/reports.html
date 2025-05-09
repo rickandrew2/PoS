@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" 
+      xmlns:sec="http://www.thymeleaf.org/extras/spring-security"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{layout/main}">
+<head>
+    <title>Reports - POS System</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        .report-card {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .report-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .report-title {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: #2c3e50;
+        }
+
+        .report-stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .stat-item {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+        }
+
+        .stat-label {
+            font-size: 0.9rem;
+            color: #6c757d;
+            margin-bottom: 5px;
+        }
+
+        .stat-value {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: #2c3e50;
+        }
+
+        .report-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        .btn-report {
+            padding: 8px 16px;
+            border-radius: 6px;
+            border: none;
+            background: #3498db;
+            color: white;
+            cursor: pointer;
+            transition: background 0.3s;
+            text-decoration: none;
+            display: inline-block;
+        }
+
+        .btn-report:hover {
+            background: #2980b9;
+            color: white;
+            text-decoration: none;
+        }
+
+        .btn-export {
+            background: #27ae60;
+        }
+
+        .btn-export:hover {
+            background: #219a52;
+        }
+    </style>
+</head>
+<body>
+    <div layout:fragment="content">
+        <div class="container">
+            <div class="report-card">
+                <div class="report-header">
+                    <h2 class="report-title">Today's Sales Report</h2>
+                    <div class="report-actions">
+                        <a href="/reports/sales/daily" class="btn-report">View Details</a>
+                        <button class="btn-report btn-export">Export</button>
+                    </div>
+                </div>
+                <div class="report-stats">
+                    <div class="stat-item">
+                        <div class="stat-label">Total Sales</div>
+                        <div class="stat-value" th:text="${#numbers.formatDecimal(todayReport.totalAmount, 1, 2)}">0.00</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-label">Total Transactions</div>
+                        <div class="stat-value" th:text="${todayReport.totalTransactions}">0</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-label">Total VAT</div>
+                        <div class="stat-value" th:text="${#numbers.formatDecimal(todayReport.totalVat, 1, 2)}">0.00</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-label">Total Discount</div>
+                        <div class="stat-value" th:text="${#numbers.formatDecimal(todayReport.totalDiscount, 1, 2)}">0.00</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="report-card">
+                <div class="report-header">
+                    <h2 class="report-title">Weekly Sales Report</h2>
+                    <div class="report-actions">
+                        <a href="/reports/sales/weekly" class="btn-report">View Details</a>
+                        <button class="btn-report btn-export">Export</button>
+                    </div>
+                </div>
+                <div class="report-stats">
+                    <div class="stat-item">
+                        <div class="stat-label">Total Sales</div>
+                        <div class="stat-value" th:text="${#numbers.formatDecimal(weekReport.totalAmount, 1, 2)}">0.00</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-label">Total Transactions</div>
+                        <div class="stat-value" th:text="${weekReport.totalTransactions}">0</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-label">Total VAT</div>
+                        <div class="stat-value" th:text="${#numbers.formatDecimal(weekReport.totalVat, 1, 2)}">0.00</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-label">Total Discount</div>
+                        <div class="stat-value" th:text="${#numbers.formatDecimal(weekReport.totalDiscount, 1, 2)}">0.00</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html> 

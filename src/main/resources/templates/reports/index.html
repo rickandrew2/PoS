@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{layout/main}">
+<head>
+    <title>POS - Sales Reports</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        .report-card {
+            border-radius: 10px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            transition: transform 0.2s;
+        }
+        .report-card:hover {
+            transform: translateY(-5px);
+        }
+        .stat-item {
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 10px;
+        }
+        .stat-value {
+            font-size: 1.5rem;
+            font-weight: bold;
+        }
+        .btn-export {
+            background-color: #28a745;
+            color: white;
+            border: none;
+            padding: 8px 15px;
+            border-radius: 5px;
+            text-decoration: none;
+            display: inline-block;
+        }
+        .btn-export:hover {
+            background-color: #218838;
+            color: white;
+        }
+        .btn-view {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 8px 15px;
+            border-radius: 5px;
+            text-decoration: none;
+            display: inline-block;
+        }
+        .btn-view:hover {
+            background-color: #0056b3;
+            color: white;
+        }
+    </style>
+</head>
+<body>
+    <div layout:fragment="content">
+        <div class="container-fluid">
+            <h2 class="mb-4">Sales Reports</h2>
+            
+            <!-- Today's Sales Report -->
+            <div class="card report-card mb-4">
+                <div class="card-body">
+                    <h4 class="card-title">
+                        <i class="fas fa-calendar-day me-2"></i>
+                        Today's Sales Report
+                        <small class="text-muted" th:text="${#temporals.format(today, 'MMMM dd, yyyy')}">Date</small>
+                    </h4>
+                    
+                    <div class="row mt-4">
+                        <div class="col-md-3">
+                            <div class="stat-item bg-primary text-white">
+                                <h6>Total Sales</h6>
+                                <div class="stat-value">₱<span th:text="${#numbers.formatDecimal(todayReport.totalAmount, 1, 2)}">0.00</span></div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="stat-item bg-success text-white">
+                                <h6>Total Transactions</h6>
+                                <div class="stat-value" th:text="${todayReport.totalTransactions}">0</div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="stat-item bg-info text-white">
+                                <h6>Total VAT</h6>
+                                <div class="stat-value">₱<span th:text="${#numbers.formatDecimal(todayReport.totalVat, 1, 2)}">0.00</span></div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="stat-item bg-warning text-white">
+                                <h6>Total Discounts</h6>
+                                <div class="stat-value">₱<span th:text="${#numbers.formatDecimal(todayReport.totalDiscount, 1, 2)}">0.00</span></div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mt-4">
+                        <a th:href="@{/reports/sales/daily}" class="btn-view me-2">
+                            <i class="fas fa-eye me-2"></i>View Details
+                        </a>
+                        <button class="btn-export">
+                            <i class="fas fa-file-export me-2"></i>Export
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Weekly Sales Report -->
+            <div class="card report-card">
+                <div class="card-body">
+                    <h4 class="card-title">
+                        <i class="fas fa-calendar-week me-2"></i>
+                        Weekly Sales Report
+                        <small class="text-muted">
+                            <span th:text="${#temporals.format(startOfWeek, 'MMMM dd')}">Start</span> - 
+                            <span th:text="${#temporals.format(endOfWeek, 'MMMM dd, yyyy')}">End</span>
+                        </small>
+                    </h4>
+                    
+                    <div class="row mt-4">
+                        <div class="col-md-3">
+                            <div class="stat-item bg-primary text-white">
+                                <h6>Total Sales</h6>
+                                <div class="stat-value">₱<span th:text="${#numbers.formatDecimal(weeklyReport.totalAmount, 1, 2)}">0.00</span></div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="stat-item bg-success text-white">
+                                <h6>Total Transactions</h6>
+                                <div class="stat-value" th:text="${weeklyReport.totalTransactions}">0</div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="stat-item bg-info text-white">
+                                <h6>Total VAT</h6>
+                                <div class="stat-value">₱<span th:text="${#numbers.formatDecimal(weeklyReport.totalVat, 1, 2)}">0.00</span></div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="stat-item bg-warning text-white">
+                                <h6>Total Discounts</h6>
+                                <div class="stat-value">₱<span th:text="${#numbers.formatDecimal(weeklyReport.totalDiscount, 1, 2)}">0.00</span></div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mt-4">
+                        <a th:href="@{/reports/sales/weekly}" class="btn-view me-2">
+                            <i class="fas fa-eye me-2"></i>View Details
+                        </a>
+                        <button class="btn-export">
+                            <i class="fas fa-file-export me-2"></i>Export
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html> 

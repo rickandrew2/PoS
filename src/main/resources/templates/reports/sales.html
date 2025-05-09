@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" 
+      xmlns:sec="http://www.thymeleaf.org/extras/spring-security"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{layout/main}">
+<head>
+    <title th:text="${reportType} + ' - POS System'">Sales Report - POS System</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        .report-container {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .report-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid #eee;
+        }
+
+        .report-title {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: #2c3e50;
+        }
+
+        .report-date {
+            color: #6c757d;
+            font-size: 0.9rem;
+        }
+
+        .report-summary {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .summary-item {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+        }
+
+        .summary-label {
+            font-size: 0.9rem;
+            color: #6c757d;
+            margin-bottom: 5px;
+        }
+
+        .summary-value {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: #2c3e50;
+        }
+
+        .transactions-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+
+        .transactions-table th,
+        .transactions-table td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #eee;
+        }
+
+        .transactions-table th {
+            background: #f8f9fa;
+            font-weight: 600;
+            color: #2c3e50;
+        }
+
+        .transactions-table tr:hover {
+            background: #f8f9fa;
+        }
+
+        .btn-back {
+            padding: 8px 16px;
+            border-radius: 6px;
+            border: none;
+            background: #3498db;
+            color: white;
+            text-decoration: none;
+            display: inline-block;
+            margin-bottom: 20px;
+        }
+
+        .btn-back:hover {
+            background: #2980b9;
+            color: white;
+            text-decoration: none;
+        }
+
+        .btn-export {
+            padding: 8px 16px;
+            border-radius: 6px;
+            border: none;
+            background: #27ae60;
+            color: white;
+            cursor: pointer;
+            margin-left: 10px;
+        }
+
+        .btn-export:hover {
+            background: #219a52;
+        }
+    </style>
+</head>
+<body>
+    <div layout:fragment="content">
+        <div class="container">
+            <a href="/reports" class="btn-back">
+                <i class="fas fa-arrow-left"></i> Back to Reports
+            </a>
+            <button class="btn-export">
+                <i class="fas fa-download"></i> Export Report
+            </button>
+
+            <div class="report-container">
+                <div class="report-header">
+                    <div>
+                        <h2 class="report-title" th:text="${reportType}">Sales Report</h2>
+                        <div class="report-date" th:text="${'Period: ' + #temporals.format(startDate, 'MMM dd, yyyy') + ' - ' + #temporals.format(endDate, 'MMM dd, yyyy')}">
+                            Period: Jan 01, 2024 - Jan 07, 2024
+                        </div>
+                    </div>
+                </div>
+
+                <div class="report-summary">
+                    <div class="summary-item">
+                        <div class="summary-label">Total Sales</div>
+                        <div class="summary-value" th:text="${#numbers.formatDecimal(report.totalAmount, 1, 2)}">0.00</div>
+                    </div>
+                    <div class="summary-item">
+                        <div class="summary-label">Total Transactions</div>
+                        <div class="summary-value" th:text="${report.totalTransactions}">0</div>
+                    </div>
+                    <div class="summary-item">
+                        <div class="summary-label">Total VAT</div>
+                        <div class="summary-value" th:text="${#numbers.formatDecimal(report.totalVat, 1, 2)}">0.00</div>
+                    </div>
+                    <div class="summary-item">
+                        <div class="summary-label">Total Discount</div>
+                        <div class="summary-value" th:text="${#numbers.formatDecimal(report.totalDiscount, 1, 2)}">0.00</div>
+                    </div>
+                </div>
+
+                <h3>Transaction Details</h3>
+                <table class="transactions-table">
+                    <thead>
+                        <tr>
+                            <th>Receipt #</th>
+                            <th>Date</th>
+                            <th>Items</th>
+                            <th>Subtotal</th>
+                            <th>VAT</th>
+                            <th>Discount</th>
+                            <th>Total</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr th:each="transaction : ${report.transactions}">
+                            <td th:text="${transaction.receiptNumber}">000001</td>
+                            <td th:text="${#temporals.format(transaction.transactionDate, 'MMM dd, yyyy HH:mm')}">Jan 01, 2024 10:00</td>
+                            <td th:text="${transaction.items.size()}">3</td>
+                            <td th:text="${#numbers.formatDecimal(transaction.subtotal, 1, 2)}">100.00</td>
+                            <td th:text="${#numbers.formatDecimal(transaction.vatAmount, 1, 2)}">12.00</td>
+                            <td th:text="${#numbers.formatDecimal(transaction.discountAmount, 1, 2)}">0.00</td>
+                            <td th:text="${#numbers.formatDecimal(transaction.totalAmount, 1, 2)}">112.00</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</body>
+</html> 

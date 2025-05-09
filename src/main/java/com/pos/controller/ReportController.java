@@ -25,6 +25,31 @@ public class ReportController {
     @Autowired
     private TransactionService transactionService;
 
+    @GetMapping
+    @PreAuthorize("hasRole('ADMINISTRATOR') or hasRole('CASHIER')")
+    public String showReportsPage(Model model) {
+        // Get today's date range
+        LocalDate today = LocalDate.now();
+        LocalDateTime startOfDay = today.atStartOfDay();
+        LocalDateTime endOfDay = today.plusDays(1).atStartOfDay();
+        Map<String, Object> todayReport = transactionService.generateSalesReport(startOfDay, endOfDay);
+
+        // Get this week's date range
+        LocalDate startOfWeek = today.with(TemporalAdjusters.previousOrSame(java.time.DayOfWeek.MONDAY));
+        LocalDate endOfWeek = startOfWeek.plusDays(6);
+        LocalDateTime startOfWeekDateTime = startOfWeek.atStartOfDay();
+        LocalDateTime endOfWeekDateTime = endOfWeek.plusDays(1).atStartOfDay();
+        Map<String, Object> weeklyReport = transactionService.generateSalesReport(startOfWeekDateTime, endOfWeekDateTime);
+
+        model.addAttribute("todayReport", todayReport);
+        model.addAttribute("weeklyReport", weeklyReport);
+        model.addAttribute("today", today);
+        model.addAttribute("startOfWeek", startOfWeek);
+        model.addAttribute("endOfWeek", endOfWeek);
+
+        return "reports/index";
+    }
+
     @GetMapping("/sales/daily")
     @PreAuthorize("hasRole('ADMINISTRATOR') or hasRole('CASHIER')")
     public String showDailySalesReport(

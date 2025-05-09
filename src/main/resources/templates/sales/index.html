@@ -73,12 +73,12 @@
                         </div>
                     </div>
                     <div class="row row-cols-1 row-cols-md-4 g-4" id="productsGrid">
-                        <div th:each="product : ${products}" class="col">
+                        <div th:each="product : ${products}" class="col"
+                             th:data-category-id="${product.category.id}">
                             <div class="card h-100 product-card"
                                  th:data-id="${product.id}"
                                  th:data-name="${product.name}"
                                  th:data-price="${product.price}"
-                                 th:data-category-id="${product.category.id}"
                                  th:classappend="${product.stockQuantity == 0} ? ' text-muted out-of-stock' : ''"
                                  th:attr="data-out-of-stock=${product.stockQuantity == 0}">
                                 <div class="card-body">

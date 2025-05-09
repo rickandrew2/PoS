@@ -1,31 +1,3 @@
-// DataTables initialization
-$(document).ready(function() {
-    console.log('Initializing DataTables...');
-    
-    // Log categories for debugging
-    const categories = Array.from(document.getElementById('productCategory').options).map(opt => ({
-        value: opt.value,
-        text: opt.text
-    }));
-    console.log('Available categories:', categories);
-    
-    $('#productsTable').DataTable({
-        order: [[0, 'desc']],
-        pageLength: 10,
-        language: {
-            search: "Search products:"
-        }
-    });
-
-    $('#categoriesTable').DataTable({
-        order: [[0, 'asc']],
-        pageLength: 5,
-        language: {
-            search: "Search categories:"
-        }
-    });
-});
-
 // CSRF token helper
 function getCsrfToken() {
     const input = document.querySelector('input[name="_csrf"]');
@@ -57,50 +29,79 @@ function editProduct(button) {
     modal.show();
 }
 
+// Modal-based product delete confirmation
+let productIdToDelete = null;
+let deleteButtonRef = null;
+
 function deleteProduct(button) {
-    const productId = button.dataset.id;
+    productIdToDelete = button.dataset.id;
+    deleteButtonRef = button;
     const productName = button.dataset.name;
 
-    if (confirm(`Are you sure you want to delete ${productName}?`)) {
-        // Disable the delete button to prevent double-click
-        button.disabled = true;
-        
-        fetch(`/api/products/${productId}`, {
+    // Set product name in modal
+    document.getElementById('deleteProductName').textContent = productName;
+
+    // Show the modal
+    const modal = new bootstrap.Modal(document.getElementById('deleteProductModal'));
+    modal.show();
+}
+
+// Handle confirm delete
+const confirmDeleteBtn = document.getElementById('confirmDeleteProductBtn');
+if (confirmDeleteBtn) {
+    confirmDeleteBtn.onclick = function() {
+        if (!productIdToDelete) return;
+        if (deleteButtonRef) deleteButtonRef.disabled = true;
+        fetch(`/api/products/${productIdToDelete}`, {
             method: 'DELETE',
             headers: {
-                'X-CSRF-TOKEN': getCsrfToken()
+                'X-CSRF-TOKEN': getCsrfToken ? getCsrfToken() : undefined
             }
         })
         .then(response => {
             if (!response.ok) {
                 throw new Error('Network response was not ok');
             }
-            showSuccessAndReload();
+            showProductDeletedModal();
         })
         .catch(error => {
-            console.error('Error:', error);
-            if (error.message === 'Failed to fetch') {
-                // Verify if the product was actually deleted by checking if it still exists
-                fetch(`/api/products/${productId}`)
-                    .then(response => {
-                        if (response.status === 404) {
-                            // Product not found means it was deleted successfully
-                            showSuccessAndReload();
-                        } else {
-                            button.disabled = false;
-                            alert('Error deleting product. Please try again.');
-                        }
-                    })
-                    .catch(() => {
-                        // If we can't verify, assume it worked since that's the common case
-                        showSuccessAndReload();
-                    });
-            } else {
-                button.disabled = false;
-                alert('Error deleting product: ' + error.message);
-            }
+            if (deleteButtonRef) deleteButtonRef.disabled = false;
+            alert('Error deleting product: ' + error.message);
+        })
+        .finally(() => {
+            const modalEl = document.getElementById('deleteProductModal');
+            const modal = bootstrap.Modal.getInstance(modalEl);
+            if (modal) modal.hide();
+            productIdToDelete = null;
+            deleteButtonRef = null;
         });
+    };
+}
+
+function showProductAddedModal() {
+    const modalEl = document.getElementById('productAddedModal');
+    if (!modalEl) {
+        console.error('productAddedModal not found in DOM');
+        return;
     }
+    console.log('Calling showProductAddedModal()');
+    const modal = new bootstrap.Modal(modalEl);
+    modal.show();
+    // Reload only when the modal is hidden (user closes it or after timeout)
+    modalEl.addEventListener('hidden.bs.modal', function handler() {
+        modalEl.removeEventListener('hidden.bs.modal', handler);
+        location.reload();
+    });
+    // Auto-close after 1.5s
+    setTimeout(() => {
+        modal.hide();
+    }, 1500);
+}
+
+function showProductDeletedModal() {
+    const modal = new bootstrap.Modal(document.getElementById('productDeletedModal'));
+    modal.show();
+    setTimeout(() => location.reload(), 1500);
 }
 
 function saveProduct() {
@@ -168,12 +169,16 @@ function saveProduct() {
     })
     .then(data => {
         console.log('Product saved successfully:', data);
-        showSuccessAndReload();
+        // Show the correct modal for add or edit
+        if (!productId) {
+            showProductAddedModal();
+        } else {
+            showSuccessAndReload(); // fallback for edit
+        }
     })
     .catch(error => {
         console.error('Error saving product:', error);
         if (error.message === 'Failed to fetch') {
-            // Verify if the product was saved/updated
             const verifyUrl = productId ? `/api/products/${productId}` : `/api/products?name=${encodeURIComponent(product.name)}`;
             fetch(verifyUrl)
                 .then(response => response.json())
@@ -186,7 +191,6 @@ function saveProduct() {
                     }
                 })
                 .catch(() => {
-                    // Can't verify, assume it worked since that's the common case
                     showSuccessAndReload();
                 });
         } else {
@@ -202,15 +206,19 @@ function showSuccessAndReload() {
     const stockModal = bootstrap.Modal.getInstance(document.getElementById('stockModal'));
     if (productModal) productModal.hide();
     if (stockModal) stockModal.hide();
-    
-    // Show success modal
-    const successModal = new bootstrap.Modal(document.getElementById('successModal'));
-    successModal.show();
-    
-    // Reload the page after 1.5 seconds
-    setTimeout(() => {
-        location.reload();
-    }, 1500);
+    // Show fallback success modal if needed
+    const successModal = document.getElementById('successModal');
+    if (successModal) {
+        const modal = new bootstrap.Modal(successModal);
+        modal.show();
+        setTimeout(() => {
+            location.reload();
+        }, 1500);
+    } else {
+        setTimeout(() => {
+            location.reload();
+        }, 1500);
+    }
 }
 
 // Category Management
@@ -227,56 +235,93 @@ function editCategory(button) {
     modal.show();
 }
 
+let categoryIdToDelete = null;
+let deleteCategoryButtonRef = null;
+
 function deleteCategory(button) {
-    const categoryId = button.dataset.id;
+    categoryIdToDelete = button.dataset.id;
+    deleteCategoryButtonRef = button;
     const categoryName = button.dataset.name;
 
-    if (confirm(`Are you sure you want to delete ${categoryName}?`)) {
-        // Disable the delete button to prevent double-click
-        button.disabled = true;
+    // Set category name in modal
+    document.getElementById('deleteCategoryName').textContent = categoryName;
 
-        fetch(`/inventory/api/categories/${categoryId}`, {
+    // Show the confirmation modal
+    const modal = new bootstrap.Modal(document.getElementById('deleteCategoryModal'));
+    modal.show();
+}
+
+// Handle confirm delete for category
+const confirmDeleteCategoryBtn = document.getElementById('confirmDeleteCategoryBtn');
+if (confirmDeleteCategoryBtn) {
+    confirmDeleteCategoryBtn.onclick = function() {
+        if (!categoryIdToDelete) return;
+        if (deleteCategoryButtonRef) deleteCategoryButtonRef.disabled = true;
+        fetch(`/inventory/api/categories/${categoryIdToDelete}`, {
             method: 'DELETE'
         })
         .then(response => {
             if (!response.ok) {
                 throw new Error('Network response was not ok');
             }
-            showSuccessAndReload();
+            showCategoryDeletedModal();
         })
         .catch(error => {
-            console.error('Error:', error);
-            if (error.message === 'Failed to fetch') {
-                // Verify if the category was actually deleted by checking if it still exists
-                fetch(`/inventory/api/categories/${categoryId}`)
-                    .then(response => {
-                        if (response.status === 404) {
-                            // Category not found means it was deleted successfully
-                            showSuccessAndReload();
-                        } else {
-                            // Check if the category is now inactive (soft delete)
-                            return response.json();
-                        }
-                    })
-                    .then(data => {
-                        if (data && !data.active) {
-                            // Category exists but is inactive, means soft delete worked
-                            showSuccessAndReload();
-                        } else {
-                            button.disabled = false;
-                            alert('Error deleting category. Please try again.');
-                        }
-                    })
-                    .catch(() => {
-                        // If we can't verify, assume it worked since that's the common case
-                        showSuccessAndReload();
-                    });
-            } else {
-                button.disabled = false;
-                alert('Error deleting category: ' + error.message);
-            }
+            if (deleteCategoryButtonRef) deleteCategoryButtonRef.disabled = false;
+            alert('Error deleting category: ' + error.message);
+        })
+        .finally(() => {
+            const modalEl = document.getElementById('deleteCategoryModal');
+            const modal = bootstrap.Modal.getInstance(modalEl);
+            if (modal) modal.hide();
+            categoryIdToDelete = null;
+            deleteCategoryButtonRef = null;
         });
+    };
+}
+
+function showCategoryDeletedModal() {
+    const modalEl = document.getElementById('categoryDeletedModal');
+    if (!modalEl) {
+        console.error('categoryDeletedModal not found in DOM');
+        return;
     }
+    const modal = new bootstrap.Modal(modalEl);
+    modal.show();
+    // Reload only when the modal is hidden (user closes it or after timeout)
+    modalEl.addEventListener('hidden.bs.modal', function handler() {
+        modalEl.removeEventListener('hidden.bs.modal', handler);
+        location.reload();
+    });
+    // Auto-close after 1.5s
+    setTimeout(() => {
+        modal.hide();
+    }, 1500);
+}
+
+function showCategoryAddedModal() {
+    // Hide the Add/Edit Category modal first
+    const categoryModalEl = document.getElementById('categoryModal');
+    const categoryModal = bootstrap.Modal.getInstance(categoryModalEl);
+    if (categoryModal) categoryModal.hide();
+
+    // Now show the success modal
+    const modalEl = document.getElementById('categoryAddedModal');
+    if (!modalEl) {
+        console.error('categoryAddedModal not found in DOM');
+        return;
+    }
+    const modal = new bootstrap.Modal(modalEl);
+    modal.show();
+    // Reload only when the modal is hidden (user closes it or after timeout)
+    modalEl.addEventListener('hidden.bs.modal', function handler() {
+        modalEl.removeEventListener('hidden.bs.modal', handler);
+        location.reload();
+    });
+    // Auto-close after 1.5s
+    setTimeout(() => {
+        modal.hide();
+    }, 1500);
 }
 
 function saveCategory() {
@@ -323,7 +368,7 @@ function saveCategory() {
     })
     .then(data => {
         console.log('Category saved successfully:', data);
-        showSuccessAndReload();
+        showCategoryAddedModal();
     })
     .catch(error => {
         console.error('Error saving category:', error);
@@ -496,4 +541,12 @@ document.getElementById('categoryModal').addEventListener('hidden.bs.modal', fun
 document.getElementById('stockModal').addEventListener('hidden.bs.modal', function () {
     document.getElementById('stockForm').reset();
     document.getElementById('stockProductId').value = '';
-}); 
+});
+
+// Ensure productId is cleared every time the add product modal is shown
+const productModalEl = document.getElementById('productModal');
+if (productModalEl) {
+    productModalEl.addEventListener('show.bs.modal', function () {
+        document.getElementById('productId').value = '';
+    });
+} 

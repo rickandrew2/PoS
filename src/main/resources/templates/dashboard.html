@@ -6,14 +6,24 @@
     <title>Dashboard</title>
     <style>
         .stat-card {
-            border-radius: 8px;
+            border-radius: 12px;
             padding: 1.5rem;
             color: white;
-            transition: transform 0.2s ease;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            text-decoration: none;
         }
 
         .stat-card:hover {
             transform: translateY(-5px);
+            box-shadow: 0 8px 16px rgba(0,0,0,0.1);
+            text-decoration: none;
+            color: white;
         }
 
         .stat-icon {
@@ -28,89 +38,100 @@
         }
 
         .stat-label {
-            font-size: 1rem;
+            font-size: 1.1rem;
             opacity: 0.9;
         }
 
-        .recent-table th {
-            background-color: var(--primary-color);
-            color: white;
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
         }
 
-        .alert-card {
-            border-left: 4px solid var(--warning-color);
+        .dashboard-section {
+            background: white;
+            border-radius: 12px;
+            padding: 1.5rem;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+
+        .dashboard-section h2 {
+            font-size: 1.5rem;
+            margin-bottom: 1.5rem;
+            color: var(--primary-color);
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .dashboard-section h2 i {
+            color: var(--accent-color);
         }
     </style>
 </head>
 <body>
     <div layout:fragment="content">
-        <div class="container-fluid d-flex flex-column align-items-center justify-content-center" style="min-height: 80vh;">
-            <div class="row g-4 justify-content-center w-100">
-                <div class="col-12 col-md-6 col-lg-4 d-flex justify-content-center">
-                    <a href="/sales" style="text-decoration: none; width: 100%;">
-                        <div class="stat-card text-center shadow-lg" style="background: linear-gradient(135deg, var(--accent-color), #2980b9); min-height: 180px; display: flex; flex-direction: column; align-items: center; justify-content: center;">
-                            <div class="stat-icon mb-2">
-                                <i class="fas fa-shopping-cart"></i>
-                            </div>
-                            <div class="stat-value mb-1" th:text="${#numbers.formatDecimal(todaysSales, 1, 2)}">₱0.00</div>
-                            <div class="stat-label">Manage Sales</div>
-                        </div>
-                    </a>
+        <div class="dashboard-grid">
+            <a href="/sales" class="stat-card" style="background: linear-gradient(135deg, var(--accent-color), #2980b9);">
+                <div class="stat-icon">
+                    <i class="fas fa-shopping-cart"></i>
                 </div>
-                <div class="col-12 col-md-6 col-lg-4 d-flex justify-content-center" sec:authorize="!hasRole('CASHIER')">
-                    <a href="/inventory" style="text-decoration: none; width: 100%;">
-                        <div class="stat-card text-center shadow-lg" style="background: linear-gradient(135deg, var(--success-color), #27ae60); min-height: 180px; display: flex; flex-direction: column; align-items: center; justify-content: center;">
-                            <div class="stat-icon mb-2">
-                                <i class="fas fa-box"></i>
-                            </div>
-                            <div class="stat-value mb-1" th:text="${totalProducts}">0</div>
-                            <div class="stat-label">Manage Products</div>
-                        </div>
-                    </a>
+                <div class="stat-value" th:text="${#numbers.formatDecimal(todaysSales, 1, 2)}">₱0.00</div>
+                <div class="stat-label">Today's Sales</div>
+            </a>
+
+            <a href="/inventory" class="stat-card" style="background: linear-gradient(135deg, var(--success-color), #27ae60);" sec:authorize="!hasRole('CASHIER')">
+                <div class="stat-icon">
+                    <i class="fas fa-box"></i>
                 </div>
-                <div class="col-12 col-md-6 col-lg-4 d-flex justify-content-center" sec:authorize="!hasRole('CASHIER')">
-                    <a href="/users" style="text-decoration: none; width: 100%;">
-                        <div class="stat-card text-center shadow-lg" style="background: linear-gradient(135deg, #9b59b6, #8e44ad); min-height: 180px; display: flex; flex-direction: column; align-items: center; justify-content: center;">
-                            <div class="stat-icon mb-2">
-                                <i class="fas fa-user-shield"></i>
-                            </div>
-                            <div class="stat-value mb-1" th:text="${totalUsers}">0</div>
-                            <div class="stat-label">Manage Employees</div>
-                        </div>
-                    </a>
+                <div class="stat-value" th:text="${totalProducts}">0</div>
+                <div class="stat-label">Total Products</div>
+            </a>
+
+            <a href="/users" class="stat-card" style="background: linear-gradient(135deg, #9b59b6, #8e44ad);" sec:authorize="!hasRole('CASHIER') and !hasRole('INVENTORY_PERSONNEL')">
+                <div class="stat-icon">
+                    <i class="fas fa-user-shield"></i>
                 </div>
-                <div class="col-12 col-md-6 col-lg-4 d-flex justify-content-center" th:if="${#authorization.expression('hasRole(''ADMINISTRATOR'')')}" sec:authorize="!hasRole('CASHIER')">
-                    <a href="/admin/audit-log" style="text-decoration: none; width: 100%;">
-                        <div class="stat-card text-center shadow-lg" style="background: linear-gradient(135deg, #e74c3c, #c0392b); min-height: 180px; display: flex; flex-direction: column; align-items: center; justify-content: center;">
-                            <div class="stat-icon mb-2">
-                                <i class="fas fa-clipboard-list"></i>
-                            </div>
-                            <div class="stat-value mb-1">Audit Log</div>
-                            <div class="stat-label">View System Activity</div>
-                        </div>
-                    </a>
+                <div class="stat-value" th:text="${totalUsers}">0</div>
+                <div class="stat-label">Total Employees</div>
+            </a>
+            
+
+            <a href="/admin/audit-log" class="stat-card" style="background: linear-gradient(135deg, #e74c3c, #c0392b);" th:if="${#authorization.expression('hasRole(''ADMINISTRATOR'')')}" sec:authorize="!hasRole('CASHIER')">
+                <div class="stat-icon">
+                    <i class="fas fa-clipboard-list"></i>
                 </div>
-                <div class="col-12 col-md-6 col-lg-6 d-flex justify-content-center">
-                    <a href="/reports/sales/daily" style="text-decoration: none; width: 100%;">
-                        <div class="stat-card text-center shadow-lg" style="background: linear-gradient(135deg, #e67e22, #d35400); min-height: 180px; display: flex; flex-direction: column; align-items: center; justify-content: center;">
-                            <div class="stat-icon mb-2">
-                                <i class="fas fa-calendar-day"></i>
-                            </div>
-                            <div class="stat-value mb-1">Daily</div>
-                            <div class="stat-label">Sales Report</div>
-                        </div>
-                    </a>
+                <div class="stat-value">Audit Log</div>
+                <div class="stat-label">View System Activity</div>
+            </a>
+        </div>
+
+        <div class="row">
+            <div class="col-md-6 mb-4">
+                <div class="dashboard-section">
+                    <h2><i class="fas fa-chart-line"></i> Sales Reports</h2>
+                    <div class="d-grid gap-3">
+                        <a href="/reports/sales/daily" class="btn btn-outline-primary">
+                            <i class="fas fa-calendar-day me-2"></i> Daily Sales Report
+                        </a>
+                        <a href="/reports/sales/weekly" class="btn btn-outline-primary">
+                            <i class="fas fa-calendar-week me-2"></i> Weekly Sales Report
+                        </a>
+                    </div>
                 </div>
-                <div class="col-12 col-md-6 col-lg-6 d-flex justify-content-center">
-                    <a href="/reports/sales/weekly" style="text-decoration: none; width: 100%;">
-                        <div class="stat-card text-center shadow-lg" style="background: linear-gradient(135deg, #3498db, #2980b9); min-height: 180px; display: flex; flex-direction: column; align-items: center; justify-content: center;">
-                            <div class="stat-icon mb-2">
-                                <i class="fas fa-calendar-week"></i>
-                            </div>
-                            <div class="stat-value mb-1">Weekly</div>
-                            <div class="stat-label">Sales Report</div>
-                        </div>
-                    </a>
+            </div>
+            <div class="col-md-6 mb-4">
+                <div class="dashboard-section">
+                    <h2><i class="fas fa-cog"></i> Quick Actions</h2>
+                    <div class="d-grid gap-3">
+                        <a href="/sales" class="btn btn-primary">
+                            <i class="fas fa-plus me-2"></i> New Sale
+                        </a>
+                        <a href="/inventory" class="btn btn-success" sec:authorize="!hasRole('CASHIER')">
+                            <i class="fas fa-box me-2"></i> Add New Product
+                        </a>
+                    </div>
                 </div>
             </div>
         </div>

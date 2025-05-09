@@ -9,6 +9,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDateTime;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 import java.util.Map;
@@ -167,5 +168,14 @@ public class TransactionService {
 
     public Page<Transaction> getTransactionsByDateRangePaged(LocalDateTime start, LocalDateTime end, Pageable pageable) {
         return transactionRepository.findByTransactionDateBetween(start, end, pageable);
+    }
+
+    public BigDecimal getTodaysSales() {
+        LocalDateTime startOfDay = LocalDate.now().atStartOfDay();
+        LocalDateTime endOfDay = LocalDate.now().plusDays(1).atStartOfDay();
+        return transactionRepository.findByTransactionDateBetween(startOfDay, endOfDay)
+                .stream()
+                .map(Transaction::getTotalAmount)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
     }
 } 
