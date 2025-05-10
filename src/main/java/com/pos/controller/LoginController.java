@@ -13,6 +13,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.web.authentication.WebAuthenticationDetails;
 import org.springframework.security.web.context.HttpSessionSecurityContextRepository;
+import com.pos.service.UserService;
 
 @Controller
 public class LoginController {
@@ -22,6 +23,9 @@ public class LoginController {
 
     @Autowired
     private AuthenticationManager authenticationManager;
+
+    @Autowired
+    private UserService userService;
 
     @GetMapping("/login")
     public String showLoginPage() {
@@ -48,7 +52,10 @@ public class LoginController {
             // Set authentication in SecurityContext
             SecurityContextHolder.getContext().setAuthentication(authentication);
             request.getSession().setAttribute(HttpSessionSecurityContextRepository.SPRING_SECURITY_CONTEXT_KEY, SecurityContextHolder.getContext());
-            
+
+            // Update last login
+            userService.updateLastLogin(username);
+
             return "redirect:/dashboard";
         } catch (Exception e) {
             return "redirect:/login?error";

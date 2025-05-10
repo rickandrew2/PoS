@@ -107,10 +107,12 @@ public class UserService implements UserDetailsService {
     }
 
     public void updateLastLogin(String username) {
+        System.out.println("[DEBUG] Attempting to update last login for: " + username);
         User user = userRepository.findByUsername(username)
-            .orElseThrow(() -> new UsernameNotFoundException("User not found"));
+            .orElseThrow(() -> new UsernameNotFoundException("User not found: " + username));
         user.setLastLogin(LocalDateTime.now());
         userRepository.save(user);
+        System.out.println("[DEBUG] Last login updated for: " + username);
     }
 
     public Optional<User> getUserByUsername(String username) {

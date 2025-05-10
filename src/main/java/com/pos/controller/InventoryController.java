@@ -16,6 +16,11 @@ import com.opencsv.CSVReader;
 import com.opencsv.CSVWriter;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.apache.pdfbox.pdmodel.PDDocument;
+import org.apache.pdfbox.pdmodel.PDPage;
+import org.apache.pdfbox.pdmodel.PDPageContentStream;
+import org.apache.pdfbox.pdmodel.common.PDRectangle;
+import org.apache.pdfbox.pdmodel.font.PDType1Font;
 
 import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
@@ -197,27 +202,77 @@ public class InventoryController {
 
     @GetMapping("/api/products/export")
     public void exportProducts(HttpServletResponse response) throws Exception {
-        response.setContentType("text/csv");
-        response.setHeader("Content-Disposition", "attachment; filename=products.csv");
+        response.setContentType("application/pdf");
+        response.setHeader("Content-Disposition", "attachment; filename=products.pdf");
 
         List<Product> products = productService.getAllProducts();
 
-        try (CSVWriter writer = new CSVWriter(new OutputStreamWriter(response.getOutputStream()))) {
-            writer.writeNext(new String[]{"Name", "Description", "Price", "Category ID", "Stock", "VATable"});
+        try (PDDocument document = new PDDocument()) {
+            PDPage page = new PDPage(PDRectangle.LETTER);
+            document.addPage(page);
+            PDPageContentStream contentStream = new PDPageContentStream(document, page);
 
+            float margin = 40;
+            float yStart = page.getMediaBox().getHeight() - margin;
+            float tableWidth = page.getMediaBox().getWidth() - 2 * margin;
+            float yPosition = yStart;
+            float rowHeight = 20;
+            float tableTopY = yPosition;
+            float[] colWidths = {80, 120, 50, 60, 50, 50};
+            String[] headers = {"Name", "Description", "Price", "Category ID", "Stock", "VATable"};
+
+            contentStream.setFont(PDType1Font.HELVETICA_BOLD, 14);
+            contentStream.beginText();
+            contentStream.newLineAtOffset(margin, yPosition);
+            contentStream.showText("Product Inventory Export");
+            contentStream.endText();
+            yPosition -= rowHeight;
+
+            // Draw table header
+            contentStream.setFont(PDType1Font.HELVETICA_BOLD, 10);
+            float xPosition = margin;
+            for (int i = 0; i < headers.length; i++) {
+                contentStream.beginText();
+                contentStream.newLineAtOffset(xPosition, yPosition);
+                contentStream.showText(headers[i]);
+                contentStream.endText();
+                xPosition += colWidths[i];
+            }
+            yPosition -= rowHeight;
+
+            // Draw table rows
+            contentStream.setFont(PDType1Font.HELVETICA, 10);
             for (Product product : products) {
-                writer.writeNext(new String[]{
+                xPosition = margin;
+                String[] row = new String[]{
                     product.getName(),
                     product.getDescription(),
                     product.getPrice().toString(),
                     product.getCategory().getId().toString(),
                     product.getStockQuantity().toString(),
                     String.valueOf(product.getVatable())
-                });
+                };
+                for (int i = 0; i < row.length; i++) {
+                    contentStream.beginText();
+                    contentStream.newLineAtOffset(xPosition, yPosition);
+                    contentStream.showText(row[i] != null ? row[i] : "");
+                    contentStream.endText();
+                    xPosition += colWidths[i];
+                }
+                yPosition -= rowHeight;
+                if (yPosition < margin + rowHeight) {
+                    contentStream.close();
+                    page = new PDPage(PDRectangle.LETTER);
+                    document.addPage(page);
+                    contentStream = new PDPageContentStream(document, page);
+                    yPosition = yStart;
+                }
             }
+            contentStream.close();
+            document.save(response.getOutputStream());
         }
         String username = SecurityContextHolder.getContext().getAuthentication().getName();
-        auditLogService.logBulkExport(username, products.size(), "products.csv");
+        auditLogService.logBulkExport(username, products.size(), "products.pdf");
     }
 
     @PostMapping("/api/products/import")

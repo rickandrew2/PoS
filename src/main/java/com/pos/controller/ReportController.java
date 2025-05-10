@@ -13,9 +13,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.temporal.TemporalAdjusters;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Controller
@@ -50,92 +48,138 @@ public class ReportController {
         return "reports/index";
     }
 
-    @GetMapping("/sales/daily")
+    @GetMapping("/sales")
     @PreAuthorize("hasRole('ADMINISTRATOR') or hasRole('CASHIER')")
-    public String showDailySalesReport(
+    public String showSalesReport(
+            @RequestParam(defaultValue = "daily") String type,
             @RequestParam(required = false) String date,
-            @RequestParam(defaultValue = "1") int page,
-            @RequestParam(defaultValue = "10") int size,
-            @RequestParam(required = false) String search,
+            @RequestParam(required = false) String week,
+            @RequestParam(required = false) String month,
             Model model) {
-        LocalDate reportDate = date != null ? LocalDate.parse(date) : LocalDate.now();
-        LocalDateTime startOfDay = reportDate.atStartOfDay();
-        LocalDateTime endOfDay = reportDate.plusDays(1).atStartOfDay();
 
-        Map<String, Object> report = transactionService.generateSalesReport(startOfDay, endOfDay);
-        List<Transaction> transactions = (List<Transaction>) report.get("transactions");
+        LocalDateTime start = null, end = null;
+        String reportType = "Daily";
 
-        // Filter by search
-        if (search != null && !search.isEmpty()) {
-            String searchLower = search.toLowerCase();
-            transactions = transactions.stream().filter(t ->
-                (t.getReceiptNumber() != null && t.getReceiptNumber().toLowerCase().contains(searchLower)) ||
-                (t.getCustomerType() != null && t.getCustomerType().getTitle().toLowerCase().contains(searchLower)) ||
-                (t.getTransactionDate() != null && t.getTransactionDate().toString().toLowerCase().contains(searchLower))
-            ).collect(Collectors.toList());
+        if ("daily".equalsIgnoreCase(type)) {
+            reportType = "Daily";
+            LocalDate reportDate = (date != null && !date.isEmpty()) ? LocalDate.parse(date) : LocalDate.now();
+            start = reportDate.atStartOfDay();
+            end = reportDate.plusDays(1).atStartOfDay();
+            model.addAttribute("reportDate", reportDate);
+        } else if ("weekly".equalsIgnoreCase(type)) {
+            reportType = "Weekly";
+            // week format: "2025-W19"
+            LocalDate weekStart = (week != null && !week.isEmpty())
+                ? LocalDate.parse(week + "-1", java.time.format.DateTimeFormatter.ofPattern("YYYY-'W'ww-e"))
+                : LocalDate.now().with(java.time.DayOfWeek.MONDAY);
+            LocalDate weekEnd = weekStart.plusDays(6);
+            start = weekStart.atStartOfDay();
+            end = weekEnd.plusDays(1).atStartOfDay();
+            model.addAttribute("reportStartDate", weekStart);
+            model.addAttribute("reportEndDate", weekEnd);
+            model.addAttribute("reportWeek", week);
+        } else if ("monthly".equalsIgnoreCase(type)) {
+            reportType = "Monthly";
+            // month format: "2025-05"
+            LocalDate monthStart = (month != null && !month.isEmpty())
+                ? LocalDate.parse(month + "-01")
+                : LocalDate.now().withDayOfMonth(1);
+            LocalDate monthEnd = monthStart.withDayOfMonth(monthStart.lengthOfMonth());
+            start = monthStart.atStartOfDay();
+            end = monthEnd.plusDays(1).atStartOfDay();
+            model.addAttribute("reportMonth", month);
+            model.addAttribute("reportStartDate", monthStart);
+            model.addAttribute("reportEndDate", monthEnd);
         }
 
-        // Pagination
-        int totalTransactions = transactions.size();
-        int totalPages = (int) Math.ceil((double) totalTransactions / size);
-        int fromIndex = Math.max(0, (page - 1) * size);
-        int toIndex = Math.min(fromIndex + size, totalTransactions);
-        List<Transaction> pagedTransactions = transactions.subList(fromIndex, toIndex);
-
-        report.put("transactions", pagedTransactions);
+        Map<String, Object> report = transactionService.generateSalesReport(start, end);
         model.addAttribute("report", report);
-        model.addAttribute("reportDate", reportDate);
-        model.addAttribute("reportType", "Daily");
-        model.addAttribute("currentPage", page);
-        model.addAttribute("totalPages", totalPages);
-        model.addAttribute("search", search);
-        model.addAttribute("size", size);
+        model.addAttribute("reportType", reportType);
 
-        return "reports/sales-report";
-    }
-
-    @GetMapping("/sales/weekly")
-    @PreAuthorize("hasRole('ADMINISTRATOR') or hasRole('CASHIER')")
-    public String showWeeklySalesReport(
-            @RequestParam(required = false) String startDate,
-            @RequestParam(defaultValue = "1") int page,
-            @RequestParam(defaultValue = "10") int size,
-            @RequestParam(required = false) String search,
-            Model model) {
-        LocalDate reportStartDate = startDate != null ? LocalDate.parse(startDate) : LocalDate.now().with(TemporalAdjusters.previousOrSame(java.time.DayOfWeek.MONDAY));
-        LocalDate reportEndDate = reportStartDate.plusDays(6);
-        LocalDateTime startOfWeek = reportStartDate.atStartOfDay();
-        LocalDateTime endOfWeek = reportEndDate.plusDays(1).atStartOfDay();
-
-        Map<String, Object> report = transactionService.generateSalesReport(startOfWeek, endOfWeek);
+        // Get transactions for chart data
         List<Transaction> transactions = (List<Transaction>) report.get("transactions");
 
-        // Filter by search
-        if (search != null && !search.isEmpty()) {
-            String searchLower = search.toLowerCase();
-            transactions = transactions.stream().filter(t ->
-                (t.getReceiptNumber() != null && t.getReceiptNumber().toLowerCase().contains(searchLower)) ||
-                (t.getCustomerType() != null && t.getCustomerType().getTitle().toLowerCase().contains(searchLower)) ||
-                (t.getTransactionDate() != null && t.getTransactionDate().toString().toLowerCase().contains(searchLower))
-            ).collect(Collectors.toList());
+        // 1. Sales Trend Over Time
+        Map<String, Double> salesTrend = new LinkedHashMap<>();
+        transactions.stream()
+            .collect(Collectors.groupingBy(
+                t -> t.getTransactionDate().toLocalDate().toString(),
+                TreeMap::new,
+                Collectors.summingDouble(t -> t.getTotalAmount().doubleValue())
+            ))
+            .forEach(salesTrend::put);
+
+        Map<String, Object> salesTrendData = new HashMap<>();
+        List<String> salesTrendLabels = new ArrayList<>(salesTrend.keySet());
+        List<Double> salesTrendValues = new ArrayList<>(salesTrend.values());
+        salesTrendData.put("labels", salesTrendLabels);
+        salesTrendData.put("data", salesTrendValues);
+        model.addAttribute("salesTrend", salesTrendData);
+        // Add zipped rows for Google Charts
+        List<List<Object>> salesTrendRows = new ArrayList<>();
+        for (int i = 0; i < salesTrendLabels.size(); i++) {
+            salesTrendRows.add(Arrays.asList(salesTrendLabels.get(i), salesTrendValues.get(i)));
+        }
+        model.addAttribute("salesTrendRows", salesTrendRows);
+
+        // 2. Sales by Category
+        Map<String, Double> categorySales = new HashMap<>();
+        for (Transaction t : transactions) {
+            if (t.getItems() != null) {
+                for (var item : t.getItems()) {
+                    String category = item.getProduct().getCategory().getName();
+                    double subtotal = item.getSubtotal().doubleValue();
+                    categorySales.merge(category, subtotal, Double::sum);
+                }
+            }
         }
 
-        // Pagination
-        int totalTransactions = transactions.size();
-        int totalPages = (int) Math.ceil((double) totalTransactions / size);
-        int fromIndex = Math.max(0, (page - 1) * size);
-        int toIndex = Math.min(fromIndex + size, totalTransactions);
-        List<Transaction> pagedTransactions = transactions.subList(fromIndex, toIndex);
+        List<Map.Entry<String, Double>> sortedCategories = categorySales.entrySet().stream()
+            .sorted(Map.Entry.<String, Double>comparingByValue().reversed())
+            .collect(Collectors.toList());
 
-        report.put("transactions", pagedTransactions);
-        model.addAttribute("report", report);
-        model.addAttribute("reportStartDate", reportStartDate);
-        model.addAttribute("reportEndDate", reportEndDate);
-        model.addAttribute("reportType", "Weekly");
-        model.addAttribute("currentPage", page);
-        model.addAttribute("totalPages", totalPages);
-        model.addAttribute("search", search);
-        model.addAttribute("size", size);
+        Map<String, Object> categoryData = new HashMap<>();
+        List<String> categoryLabels = sortedCategories.stream().map(Map.Entry::getKey).collect(Collectors.toList());
+        List<Double> categoryValues = sortedCategories.stream().map(Map.Entry::getValue).collect(Collectors.toList());
+        categoryData.put("labels", categoryLabels);
+        categoryData.put("data", categoryValues);
+        model.addAttribute("categorySales", categoryData);
+        // Add zipped rows for Google Charts
+        List<List<Object>> categoryRows = new ArrayList<>();
+        for (int i = 0; i < categoryLabels.size(); i++) {
+            categoryRows.add(Arrays.asList(categoryLabels.get(i), categoryValues.get(i)));
+        }
+        model.addAttribute("categoryRows", categoryRows);
+
+        // 3. Top Products
+        Map<String, Double> productSales = new HashMap<>();
+        for (Transaction t : transactions) {
+            if (t.getItems() != null) {
+                for (var item : t.getItems()) {
+                    String product = item.getProduct().getName();
+                    double subtotal = item.getSubtotal().doubleValue();
+                    productSales.merge(product, subtotal, Double::sum);
+                }
+            }
+        }
+
+        List<Map.Entry<String, Double>> topProducts = productSales.entrySet().stream()
+            .sorted(Map.Entry.<String, Double>comparingByValue().reversed())
+            .limit(5)
+            .collect(Collectors.toList());
+
+        Map<String, Object> topProductsData = new HashMap<>();
+        List<String> topProductLabels = topProducts.stream().map(Map.Entry::getKey).collect(Collectors.toList());
+        List<Double> topProductValues = topProducts.stream().map(Map.Entry::getValue).collect(Collectors.toList());
+        topProductsData.put("labels", topProductLabels);
+        topProductsData.put("data", topProductValues);
+        model.addAttribute("topProducts", topProductsData);
+        // Add zipped rows for Google Charts
+        List<List<Object>> topProductsRows = new ArrayList<>();
+        for (int i = 0; i < topProductLabels.size(); i++) {
+            topProductsRows.add(Arrays.asList(topProductLabels.get(i), topProductValues.get(i)));
+        }
+        model.addAttribute("topProductsRows", topProductsRows);
 
         return "reports/sales-report";
     }
