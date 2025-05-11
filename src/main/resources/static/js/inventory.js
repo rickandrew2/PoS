@@ -491,7 +491,43 @@ function updateStock() {
 
 // Import/Export Functions
 function exportProducts() {
-    window.location.href = '/inventory/api/products/export';
+    const pdfjsLib = window.pdfjsLib;
+    fetch('/inventory/api/products/export/preview')
+        .then(response => response.blob())
+        .then(blob => {
+            const url = URL.createObjectURL(blob);
+            const modal = new bootstrap.Modal(document.getElementById('pdfPreviewModal'));
+            modal.show();
+            // Render PDF using PDF.js
+            const canvas = document.getElementById('pdfPreviewCanvas');
+            const ctx = canvas.getContext('2d');
+            pdfjsLib.getDocument(url).promise.then(function(pdf) {
+                pdf.getPage(1).then(function(page) {
+                    const viewport = page.getViewport({ scale: 1.5 });
+                    canvas.width = viewport.width;
+                    canvas.height = viewport.height;
+                    page.render({ canvasContext: ctx, viewport: viewport });
+                });
+            });
+            // Download button logic
+            const downloadBtn = document.getElementById('downloadPdfBtn');
+            downloadBtn.onclick = function() {
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'products.pdf';
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                modal.hide();
+                setTimeout(() => URL.revokeObjectURL(url), 1000);
+            };
+            // Clean up URL and canvas when modal closes
+            document.getElementById('pdfPreviewModal').addEventListener('hidden.bs.modal', function handler() {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                setTimeout(() => URL.revokeObjectURL(url), 1000);
+                document.getElementById('pdfPreviewModal').removeEventListener('hidden.bs.modal', handler);
+            });
+        });
 }
 
 function importProducts() {
@@ -549,4 +585,21 @@ if (productModalEl) {
     productModalEl.addEventListener('show.bs.modal', function () {
         document.getElementById('productId').value = '';
     });
+}
+
+function printInventory() {
+    window.print();
+}
+
+// Export Functions
+function exportInventoryExcel() {
+    const modal = new bootstrap.Modal(document.getElementById('excelPreviewModal'));
+    modal.show();
+}
+
+function downloadInventoryExcel() {
+    window.location.href = '/inventory/api/products/export/excel';
+    const modalEl = document.getElementById('excelPreviewModal');
+    const modal = bootstrap.Modal.getInstance(modalEl);
+    if (modal) modal.hide();
 } 

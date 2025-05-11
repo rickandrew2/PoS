@@ -21,6 +21,8 @@ import org.apache.pdfbox.pdmodel.PDPage;
 import org.apache.pdfbox.pdmodel.PDPageContentStream;
 import org.apache.pdfbox.pdmodel.common.PDRectangle;
 import org.apache.pdfbox.pdmodel.font.PDType1Font;
+import org.apache.poi.ss.usermodel.*;
+import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 
 import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
@@ -200,13 +202,8 @@ public class InventoryController {
         }
     }
 
-    @GetMapping("/api/products/export")
-    public void exportProducts(HttpServletResponse response) throws Exception {
-        response.setContentType("application/pdf");
-        response.setHeader("Content-Disposition", "attachment; filename=products.pdf");
-
-        List<Product> products = productService.getAllProducts();
-
+    // Helper to generate PDF and return as byte array
+    private byte[] generateProductsPdf(List<Product> products) throws Exception {
         try (PDDocument document = new PDDocument()) {
             PDPage page = new PDPage(PDRectangle.LETTER);
             document.addPage(page);
@@ -216,24 +213,30 @@ public class InventoryController {
             float yStart = page.getMediaBox().getHeight() - margin;
             float tableWidth = page.getMediaBox().getWidth() - 2 * margin;
             float yPosition = yStart;
-            float rowHeight = 20;
-            float tableTopY = yPosition;
-            float[] colWidths = {80, 120, 50, 60, 50, 50};
+            float rowHeight = 24;
+            float[] colWidths = {80, 160, 60, 70, 50, 60};
             String[] headers = {"Name", "Description", "Price", "Category ID", "Stock", "VATable"};
 
-            contentStream.setFont(PDType1Font.HELVETICA_BOLD, 14);
+            // Title
+            contentStream.setFont(PDType1Font.HELVETICA_BOLD, 16);
             contentStream.beginText();
             contentStream.newLineAtOffset(margin, yPosition);
             contentStream.showText("Product Inventory Export");
             contentStream.endText();
             yPosition -= rowHeight;
 
+            // Draw header background
+            contentStream.setNonStrokingColor(220, 220, 220);
+            contentStream.addRect(margin, yPosition, tableWidth, rowHeight);
+            contentStream.fill();
+            contentStream.setNonStrokingColor(0, 0, 0);
+
             // Draw table header
-            contentStream.setFont(PDType1Font.HELVETICA_BOLD, 10);
+            contentStream.setFont(PDType1Font.HELVETICA_BOLD, 11);
             float xPosition = margin;
             for (int i = 0; i < headers.length; i++) {
                 contentStream.beginText();
-                contentStream.newLineAtOffset(xPosition, yPosition);
+                contentStream.newLineAtOffset(xPosition + 2, yPosition + 6);
                 contentStream.showText(headers[i]);
                 contentStream.endText();
                 xPosition += colWidths[i];
@@ -253,13 +256,22 @@ public class InventoryController {
                     String.valueOf(product.getVatable())
                 };
                 for (int i = 0; i < row.length; i++) {
+                    String cell = row[i] != null ? row[i] : "";
+                    // Wrap description if too long
+                    if (i == 1 && cell.length() > 40) {
+                        cell = cell.substring(0, 37) + "...";
+                    }
                     contentStream.beginText();
-                    contentStream.newLineAtOffset(xPosition, yPosition);
-                    contentStream.showText(row[i] != null ? row[i] : "");
+                    contentStream.newLineAtOffset(xPosition + 2, yPosition + 6);
+                    contentStream.showText(cell);
                     contentStream.endText();
                     xPosition += colWidths[i];
                 }
                 yPosition -= rowHeight;
+                // Draw row borders
+                contentStream.moveTo(margin, yPosition + rowHeight);
+                contentStream.lineTo(margin + tableWidth, yPosition + rowHeight);
+                contentStream.stroke();
                 if (yPosition < margin + rowHeight) {
                     contentStream.close();
                     page = new PDPage(PDRectangle.LETTER);
@@ -268,11 +280,45 @@ public class InventoryController {
                     yPosition = yStart;
                 }
             }
+            // Draw column borders
+            xPosition = margin;
+            for (float w : colWidths) {
+                contentStream.moveTo(xPosition, yStart);
+                contentStream.lineTo(xPosition, yPosition);
+                contentStream.stroke();
+                xPosition += w;
+            }
+            // Draw right border
+            contentStream.moveTo(margin + tableWidth, yStart);
+            contentStream.lineTo(margin + tableWidth, yPosition);
+            contentStream.stroke();
+            // Draw bottom border
+            contentStream.moveTo(margin, yPosition);
+            contentStream.lineTo(margin + tableWidth, yPosition);
+            contentStream.stroke();
             contentStream.close();
-            document.save(response.getOutputStream());
+            java.io.ByteArrayOutputStream baos = new java.io.ByteArrayOutputStream();
+            document.save(baos);
+            return baos.toByteArray();
         }
+    }
+
+    @GetMapping("/api/products/export")
+    public void exportProducts(HttpServletResponse response) throws Exception {
+        response.setContentType("application/pdf");
+        response.setHeader("Content-Disposition", "attachment; filename=products.pdf");
+        List<Product> products = productService.getAllProducts();
+        byte[] pdfBytes = generateProductsPdf(products);
+        response.getOutputStream().write(pdfBytes);
         String username = SecurityContextHolder.getContext().getAuthentication().getName();
         auditLogService.logBulkExport(username, products.size(), "products.pdf");
+    }
+
+    @GetMapping(value = "/api/products/export/preview", produces = "application/pdf")
+    @ResponseBody
+    public byte[] previewProductsPdf() throws Exception {
+        List<Product> products = productService.getAllProducts();
+        return generateProductsPdf(products);
     }
 
     @PostMapping("/api/products/import")
@@ -296,5 +342,41 @@ public class InventoryController {
         }
         auditLogService.logBulkImport(username, importedProducts.size(), file.getOriginalFilename());
         return ResponseEntity.ok().build();
+    }
+
+    @GetMapping("/api/products/export/excel")
+    public void exportProductsExcel(HttpServletResponse response) throws Exception {
+        response.setContentType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+        response.setHeader("Content-Disposition", "attachment; filename=products.xlsx");
+
+        List<Product> products = productService.getAllProducts();
+
+        try (Workbook workbook = new XSSFWorkbook()) {
+            Sheet sheet = workbook.createSheet("Products");
+            Row header = sheet.createRow(0);
+            header.createCell(0).setCellValue("ID");
+            header.createCell(1).setCellValue("Name");
+            header.createCell(2).setCellValue("Category");
+            header.createCell(3).setCellValue("Price");
+            header.createCell(4).setCellValue("Stock");
+            header.createCell(5).setCellValue("VATable");
+
+            int rowIdx = 1;
+            for (Product product : products) {
+                Row row = sheet.createRow(rowIdx++);
+                row.createCell(0).setCellValue(product.getId());
+                row.createCell(1).setCellValue(product.getName());
+                row.createCell(2).setCellValue(product.getCategory().getName());
+                row.createCell(3).setCellValue(product.getPrice().doubleValue());
+                row.createCell(4).setCellValue(product.getStockQuantity());
+                row.createCell(5).setCellValue(product.getVatable() != null && product.getVatable() ? "Yes" : "No");
+            }
+
+            for (int i = 0; i <= 5; i++) {
+                sheet.autoSizeColumn(i);
+            }
+
+            workbook.write(response.getOutputStream());
+        }
     }
 } 
