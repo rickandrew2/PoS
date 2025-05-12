@@ -37,4 +37,7 @@ public class Product {
 
     @Column(nullable = false, columnDefinition = "boolean default true")
     private Boolean active = true;
+
+    @Column(name = "on_hold_stock", nullable = false)
+    private Integer onHoldStock = 0;
 } 

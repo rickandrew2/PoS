@@ -68,7 +68,7 @@ public class ProductController {
         product.setDescription(payload.get("description") != null ? payload.get("description").toString().trim() : "");
         product.setPrice(new BigDecimal(payload.get("price").toString()));
         product.setStockQuantity(Integer.parseInt(payload.get("stockQuantity").toString()));
-        product.setVatable(payload.get("vatable") != null ? (Boolean) payload.get("vatable") : true);
+        product.setVatable(true);
 
         try {
             Long categoryId = Long.parseLong(payload.get("categoryId").toString());
@@ -81,36 +81,6 @@ public class ProductController {
 
         String username = SecurityContextHolder.getContext().getAuthentication().getName();
         return ResponseEntity.ok(productService.createProduct(product, username));
-    }
-
-    @PutMapping("/{id}")
-    @PreAuthorize("hasAnyRole('ADMINISTRATOR', 'INVENTORY_PERSONNEL')")
-    public ResponseEntity<Product> updateProduct(@PathVariable Long id, @RequestBody Map<String, Object> payload) {
-        Product existingProduct = productService.getProductById(id)
-            .orElseThrow(() -> new IllegalArgumentException("Product not found"));
-
-        // Update fields if they exist in the payload
-        if (payload.get("name") != null) {
-            existingProduct.setName(payload.get("name").toString().trim());
-        }
-        if (payload.get("description") != null) {
-            existingProduct.setDescription(payload.get("description").toString().trim());
-        }
-        if (payload.get("price") != null) {
-            existingProduct.setPrice(new BigDecimal(payload.get("price").toString()));
-        }
-        if (payload.get("vatable") != null) {
-            existingProduct.setVatable((Boolean) payload.get("vatable"));
-        }
-        if (payload.get("categoryId") != null) {
-            Long categoryId = Long.parseLong(payload.get("categoryId").toString());
-            Category category = categoryService.getCategoryById(categoryId)
-                .orElseThrow(() -> new IllegalArgumentException("Category not found"));
-            existingProduct.setCategory(category);
-        }
-
-        String username = SecurityContextHolder.getContext().getAuthentication().getName();
-        return ResponseEntity.ok(productService.updateProduct(id, existingProduct, username));
     }
 
     @DeleteMapping("/{id}")
@@ -141,9 +111,39 @@ public class ProductController {
 
             product.setStockQuantity(newStock);
             String username = SecurityContextHolder.getContext().getAuthentication().getName();
-            return ResponseEntity.ok(productService.updateProduct(id, product, username));
+            return ResponseEntity.ok(productService.updateProduct(product, username));
         } catch (NumberFormatException e) {
             throw new IllegalArgumentException("Invalid stock adjustment value");
         }
+    }
+
+    @PutMapping("/{id}/transfer-on-hold")
+    @PreAuthorize("hasAnyRole('ADMINISTRATOR', 'INVENTORY_PERSONNEL')")
+    public ResponseEntity<Product> transferOnHoldStock(@PathVariable Long id) {
+        String username = SecurityContextHolder.getContext().getAuthentication().getName();
+        Product updatedProduct = productService.transferOnHoldStock(id, username);
+        return ResponseEntity.ok(updatedProduct);
+    }
+
+    @PutMapping("/{id}")
+    @PreAuthorize("hasAnyRole('ADMINISTRATOR', 'INVENTORY_PERSONNEL')")
+    public ResponseEntity<Product> updateProduct(@PathVariable Long id, @RequestBody Map<String, Object> payload) {
+        Product product = productService.getProductById(id)
+            .orElseThrow(() -> new IllegalArgumentException("Product not found"));
+
+        if (payload.get("name") != null) product.setName(payload.get("name").toString());
+        if (payload.get("description") != null) product.setDescription(payload.get("description").toString());
+        if (payload.get("price") != null) product.setPrice(new java.math.BigDecimal(payload.get("price").toString()));
+        if (payload.get("categoryId") != null) {
+            Long categoryId = Long.parseLong(payload.get("categoryId").toString());
+            Category category = categoryService.getCategoryById(categoryId)
+                .orElseThrow(() -> new IllegalArgumentException("Category not found"));
+            product.setCategory(category);
+        }
+        if (payload.get("stockQuantity") != null) product.setStockQuantity(Integer.parseInt(payload.get("stockQuantity").toString()));
+        if (payload.get("vatable") != null) product.setVatable(Boolean.parseBoolean(payload.get("vatable").toString()));
+
+        String username = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication().getName();
+        return ResponseEntity.ok(productService.updateProduct(product, username));
     }
 } 

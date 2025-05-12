@@ -82,43 +82,6 @@ public class InventoryController {
         return ResponseEntity.ok(created);
     }
 
-    @PutMapping("/api/products/{id}")
-    @ResponseBody
-    public ResponseEntity<Product> updateProduct(@PathVariable Long id, @RequestBody Map<String, Object> payload) {
-        Product existingProduct = productService.getProductById(id)
-            .orElseThrow(() -> new RuntimeException("Product not found"));
-
-        StringBuilder changes = new StringBuilder();
-        if (!existingProduct.getName().equals(payload.get("name"))) {
-            changes.append("Name: ").append(existingProduct.getName()).append(" -> ").append(payload.get("name")).append("; ");
-        }
-        if (!existingProduct.getDescription().equals(payload.get("description"))) {
-            changes.append("Description changed; ");
-        }
-        if (!existingProduct.getPrice().equals(new BigDecimal(payload.get("price").toString()))) {
-            changes.append("Price: ").append(existingProduct.getPrice()).append(" -> ").append(payload.get("price")).append("; ");
-        }
-        if (existingProduct.getVatable() != (Boolean) payload.get("vatable")) {
-            changes.append("VAT status: ").append(existingProduct.getVatable() ? "VATable" : "Non-VATable")
-                  .append(" -> ").append((Boolean) payload.get("vatable") ? "VATable" : "Non-VATable").append("; ");
-        }
-
-        Product product = new Product();
-        product.setName((String) payload.get("name"));
-        product.setDescription((String) payload.get("description"));
-        product.setPrice(new BigDecimal(payload.get("price").toString()));
-        product.setVatable((Boolean) payload.get("vatable"));
-
-        Long categoryId = Long.parseLong(payload.get("categoryId").toString());
-        Category category = categoryService.getCategoryById(categoryId)
-            .orElseThrow(() -> new RuntimeException("Category not found"));
-        product.setCategory(category);
-
-        String username = SecurityContextHolder.getContext().getAuthentication().getName();
-        Product updated = productService.updateProduct(id, product, username);
-        return ResponseEntity.ok(updated);
-    }
-
     @DeleteMapping("/api/products/{id}")
     @ResponseBody
     public ResponseEntity<Void> deleteProduct(@PathVariable Long id) {
@@ -143,11 +106,10 @@ public class InventoryController {
 
         product.setStockQuantity(newQuantity);
         String username = SecurityContextHolder.getContext().getAuthentication().getName();
-        Product updated = productService.updateProduct(id, product, username);
         System.out.println("AUDIT: Logging stock adjustment for product " + product.getName() + ", old: " + oldQuantity + ", new: " + newQuantity + ", reason: " + reason);
         auditLogService.logStockAdjustment(username, product.getName(), product.getId(), 
             oldQuantity, newQuantity, reason);
-        return ResponseEntity.ok(updated);
+        return ResponseEntity.ok(product);
     }
 
     // Category API Endpoints

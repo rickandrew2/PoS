@@ -24,39 +24,6 @@ public class ProductService {
         return created;
     }
 
-    public Product updateProduct(Long id, Product product, String username) {
-        Product existingProduct = productRepository.findById(id)
-            .orElseThrow(() -> new RuntimeException("Product not found"));
-        StringBuilder changes = new StringBuilder();
-        if (!existingProduct.getName().equals(product.getName())) {
-            changes.append("Name: ").append(existingProduct.getName()).append(" -> ").append(product.getName()).append("; ");
-        }
-        if (!existingProduct.getDescription().equals(product.getDescription())) {
-            changes.append("Description changed; ");
-        }
-        if (!existingProduct.getPrice().equals(product.getPrice())) {
-            changes.append("Price: ").append(existingProduct.getPrice()).append(" -> ").append(product.getPrice()).append("; ");
-        }
-        if (existingProduct.getVatable() != product.getVatable()) {
-            changes.append("VAT status: ").append(existingProduct.getVatable() ? "VATable" : "Non-VATable")
-                  .append(" -> ").append(product.getVatable() ? "VATable" : "Non-VATable").append("; ");
-        }
-        int oldStock = existingProduct.getStockQuantity();
-        int newStock = product.getStockQuantity();
-        if (oldStock != newStock) {
-            changes.append("Stock: ").append(oldStock).append(" -> ").append(newStock).append("; ");
-        }
-        existingProduct.setName(product.getName());
-        existingProduct.setDescription(product.getDescription());
-        existingProduct.setPrice(product.getPrice());
-        existingProduct.setStockQuantity(product.getStockQuantity());
-        existingProduct.setCategory(product.getCategory());
-        existingProduct.setActive(product.getActive());
-        Product updated = productRepository.save(existingProduct);
-        auditLogService.logProductUpdate(username, updated.getName(), updated.getId(), changes.toString());
-        return updated;
-    }
-
     public void deleteProduct(Long id, String username) {
         Product product = productRepository.findById(id)
             .orElseThrow(() -> new RuntimeException("Product not found"));
@@ -96,5 +63,29 @@ public class ProductService {
 
     public long getTotalProducts() {
         return productRepository.countByActiveTrue();
+    }
+
+    public Product transferOnHoldStock(Long id, String username) {
+        Product product = productRepository.findById(id)
+            .orElseThrow(() -> new RuntimeException("Product not found"));
+        int maxStock = 50;
+        int currentStock = product.getStockQuantity();
+        int onHold = product.getOnHoldStock();
+        if (currentStock >= maxStock || onHold <= 0) {
+            return product; // Nothing to transfer
+        }
+        int spaceLeft = maxStock - currentStock;
+        int toTransfer = Math.min(spaceLeft, onHold);
+        product.setStockQuantity(currentStock + toTransfer);
+        product.setOnHoldStock(onHold - toTransfer);
+        Product updated = productRepository.save(product);
+        auditLogService.logProductUpdate(username, updated.getName(), updated.getId(), "Transferred " + toTransfer + " from on-hold stock to main stock.");
+        return updated;
+    }
+
+    public Product updateProduct(Product product, String username) {
+        Product updated = productRepository.save(product);
+        auditLogService.logProductUpdate(username, updated.getName(), updated.getId(), "Stock updated.");
+        return updated;
     }
 } 

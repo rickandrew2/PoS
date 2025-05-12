@@ -13,6 +13,8 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.stream.Collectors;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 @Controller
 @RequestMapping("/admin/audit-log")
@@ -46,13 +48,41 @@ public class AuditLogController {
         } else {
             logs = auditLogRepository.findAllByOrderByTimestampDesc();
         }
+        // Preprocess details for clickable receipt links
+        Pattern receiptPattern = Pattern.compile("receipt: (\\d+)");
+        List<AuditLogHtml> logsHtml = (List<AuditLogHtml>) logs.stream().map(log -> {
+            com.pos.entity.AuditLog auditLog = (com.pos.entity.AuditLog) log;
+            String details = auditLog.getDetails();
+            Matcher matcher = receiptPattern.matcher(details);
+            String htmlDetails = details;
+            if (matcher.find()) {
+                String receiptNumber = matcher.group(1);
+                String link = String.format("<a href='/sales/receipt/%s' target='_blank'>%s</a>", receiptNumber, receiptNumber);
+                htmlDetails = matcher.replaceFirst("receipt: " + link);
+            }
+            return new AuditLogHtml(auditLog, htmlDetails);
+        }).collect(Collectors.toList());
         // Get all distinct actions for the filter dropdown
         List<String> actions = auditLogRepository.findDistinctActions();
-        model.addAttribute("logs", logs);
+        model.addAttribute("logs", logsHtml);
         model.addAttribute("actions", actions);
         model.addAttribute("selectedAction", action);
         model.addAttribute("startDate", startDate);
         model.addAttribute("endDate", endDate);
         return "admin/audit-log";
+    }
+
+    // Helper DTO for HTML details
+    public static class AuditLogHtml {
+        private final com.pos.entity.AuditLog log;
+        private final String htmlDetails;
+        public AuditLogHtml(com.pos.entity.AuditLog log, String htmlDetails) {
+            this.log = log;
+            this.htmlDetails = htmlDetails;
+        }
+        public String getHtmlDetails() { return htmlDetails; }
+        public java.time.LocalDateTime getTimestamp() { return log.getTimestamp(); }
+        public String getUsername() { return log.getUsername(); }
+        public String getAction() { return log.getAction(); }
     }
 } 

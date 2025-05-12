@@ -16,10 +16,100 @@
             margin-bottom: 2rem;
         }
     </style>
+    <style>
+        @media print {
+            body {
+                background: #fff !important;
+                color: #222 !important;
+                font-family: 'Arial', 'Helvetica', sans-serif;
+                font-size: 12pt;
+                margin: 0;
+            }
+            .no-print, .no-print * {
+                display: none !important;
+            }
+            .report-header {
+                text-align: center;
+                margin-bottom: 2em;
+            }
+            .report-title {
+                font-size: 2em;
+                font-weight: bold;
+                margin-bottom: 0.2em;
+            }
+            .report-meta {
+                font-size: 1em;
+                margin-bottom: 1em;
+            }
+            .report-section {
+                margin-bottom: 2em;
+            }
+            h2, h4, h5, h6 {
+                margin: 0 0 0.5em 0;
+                font-weight: bold;
+                color: #222;
+                border-bottom: 1px solid #bbb;
+                padding-bottom: 0.2em;
+                page-break-after: avoid;
+            }
+            .table {
+                width: 100% !important;
+                border-collapse: collapse !important;
+                font-size: 11pt;
+                margin-bottom: 1em;
+            }
+            .table th, .table td {
+                border: none !important;
+                border-bottom: 1px solid #ccc !important;
+                padding: 6px 8px !important;
+                text-align: left;
+            }
+            .table th {
+                background: #f5f5f5 !important;
+                font-weight: bold;
+            }
+            .table tr:last-child td {
+                border-bottom: none !important;
+            }
+            .chart-container, canvas {
+                max-width: 100% !important;
+                height: auto !important;
+                page-break-inside: avoid;
+                margin-bottom: 1.5em;
+            }
+            .page-break {
+                page-break-before: always;
+            }
+            a, a:visited {
+                color: #222 !important;
+                text-decoration: none !important;
+            }
+            @page {
+                margin: 1.5cm;
+            }
+        }
+    </style>
     <!-- Add Google Charts Loader -->
     <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
 </head>
 <body>
+    <div class="report-header" style="display:none;" id="printReportHeader">
+        <div class="report-title">POS - Sales Report</div>
+        <div class="report-meta">
+            <span th:text="${#dates.format(#dates.createNow(), 'MMMM dd, yyyy HH:mm')}"></span>
+            <span th:if="${reportType}">| <span th:text="${reportType}"></span> Report</span>
+            <span th:if="${reportPeriod}">| <span th:text="${reportPeriod}"></span></span>
+        </div>
+    </div>
+    <script>
+        // Show the report header only when printing
+        window.addEventListener('beforeprint', function() {
+            document.getElementById('printReportHeader').style.display = 'block';
+        });
+        window.addEventListener('afterprint', function() {
+            document.getElementById('printReportHeader').style.display = 'none';
+        });
+    </script>
     <div layout:fragment="content">
         <div class="row mb-4 no-print">
             <div class="col">
@@ -31,39 +121,82 @@
             </div>
         </div>
 
-        <form id="reportFilterForm" class="row mb-4" method="get" action="/reports/sales">
-            <div class="col-md-3">
-                <select id="reportTypeSelect" name="type" class="form-select">
-                    <option value="daily" th:selected="${reportType == 'Daily'}">Daily</option>
-                    <option value="weekly" th:selected="${reportType == 'Weekly'}">Weekly</option>
-                    <option value="monthly" th:selected="${reportType == 'Monthly'}">Monthly</option>
-                </select>
+        <!-- User Instructions -->
+        <div class="alert alert-info no-print" style="max-width: 700px; margin-bottom: 1rem;">
+            <i class="fas fa-info-circle me-2"></i>
+            <strong>Tip:</strong> Use the filter below to view sales by day, week, or month. Select a date, week, or month, then click <b>Apply Filter</b> to update the report. The charts below will show your sales trends and top products for the selected period.
+        </div>
+        <!-- Filter and Period Card -->
+        <div class="card mb-4 no-print">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <div>
+                        <h5 class="mb-0">Sales Report Filter</h5>
+                    </div>
+                    <div>
+                        <span tabindex="0" data-bs-toggle="popover" data-bs-trigger="focus" title="How to use this page" data-bs-content="Choose a report type (daily, weekly, monthly), select a date/week/month, and click Apply Filter. The charts and tables below will update to show sales for the selected period.">
+                            <i class="fas fa-question-circle text-secondary" style="font-size: 1.2rem; cursor: pointer;"></i>
+                        </span>
+                    </div>
+                </div>
+                <form id="reportFilterForm" class="row align-items-end g-3" method="get" action="/reports/sales">
+                    <div class="col-md-3">
+                        <label for="reportTypeSelect" class="form-label mb-1">Report Type</label>
+                        <select id="reportTypeSelect" name="type" class="form-select">
+                            <option value="daily" th:selected="${reportType == 'Daily'}">Daily</option>
+                            <option value="weekly" th:selected="${reportType == 'Weekly'}">Weekly</option>
+                            <option value="monthly" th:selected="${reportType == 'Monthly'}">Monthly</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3" id="dateInputContainer">
+                        <!-- Date input(s) will be rendered here by JS -->
+                    </div>
+                    <div class="col-md-3">
+                        <button type="submit" class="btn btn-primary w-100">Apply Filter</button>
+                    </div>
+                </form>
+                <div class="mt-3">
+                    <h5 class="mb-1 text-primary">Report Period</h5>
+                    <div th:if="${reportType == 'Daily'}">
+                        <span>Date: <span th:text="${#temporals.format(reportDate, 'MMMM dd, yyyy')}">Date</span></span>
+                    </div>
+                    <div th:if="${reportType == 'Weekly'}">
+                        <span>Period: <span th:text="${#temporals.format(reportStartDate, 'MMMM dd, yyyy')}">Start Date</span> to <span th:text="${#temporals.format(reportEndDate, 'MMMM dd, yyyy')}">End Date</span></span>
+                    </div>
+                    <div th:if="${reportType == 'Monthly'}">
+                        <span>Month: <span th:text="${#temporals.format(reportStartDate, 'MMMM yyyy')}">Month</span></span>
+                    </div>
+                </div>
             </div>
-            <div class="col-md-3" id="dateInputContainer">
-                <!-- Date input(s) will be rendered here by JS -->
-            </div>
-        </form>
-
-        <!-- Date Range Display -->
-        <div class="mb-4">
-            <h5>Report Period</h5>
-            <p th:if="${reportType == 'Daily'}">
-                Date: <span th:text="${#temporals.format(reportDate, 'MMMM dd, yyyy')}">Date</span>
-            </p>
-            <p th:if="${reportType == 'Weekly'}">
-                Period: <span th:text="${#temporals.format(reportStartDate, 'MMMM dd, yyyy')}">Start Date</span> to
-                <span th:text="${#temporals.format(reportEndDate, 'MMMM dd, yyyy')}">End Date</span>
-            </p>
-            <p th:if="${reportType == 'Monthly'}">
-                Month: <span th:text="${#temporals.format(reportStartDate, 'MMMM yyyy')}">Month</span>
-            </p>
+        </div>
+        <!-- Chart Legend -->
+        <div class="mb-3 no-print" style="max-width: 700px;">
+            <span class="badge bg-primary me-2">Sales Trend</span>
+            <span class="badge bg-success me-2">Sales by Category</span>
+            <span class="badge bg-warning text-dark">Top Sold Products</span>
         </div>
 
-        <div class="card shadow-sm mb-4">
+        <!-- Charts Section -->
+        <div class="row mb-4 report-section">
+            <div class="col-md-12 mb-4">
+                <h5>Sales Trend Over Time</h5>
+                <canvas id="salesTrendChart" height="80"></canvas>
+            </div>
+            <div class="col-md-6 mb-4">
+                <h5>Sales by Category</h5>
+                <canvas id="categorySalesChart" height="80"></canvas>
+            </div>
+            <div class="col-md-6 mb-4">
+                <h5>Top Sold Products</h5>
+                <canvas id="topProductsChart" height="80"></canvas>
+            </div>
+        </div>
+
+        <div class="card shadow-sm mb-4 report-section">
             <div class="card-body">
                 <h4 class="card-title mb-4" th:text="${reportType} + ' Sales Report'">Report Title</h4>
                 <!-- Summary Statistics -->
-                <div class="row mb-4">
+                <div class="row mb-4 report-section">
                     <div class="col-md-3">
                         <div class="card bg-primary text-white">
                             <div class="card-body">
@@ -99,7 +232,7 @@
                 </div>
 
                 <!-- Discount Statistics -->
-                <div class="row mb-4">
+                <div class="row mb-4 report-section">
                     <div class="col-md-6">
                         <div class="card">
                             <div class="card-body">
@@ -137,7 +270,7 @@
                 </div>
 
                 <!-- Transaction Details -->
-                <div class="card">
+                <div class="card report-section">
                     <div class="card-body">
                         <h5 class="card-title">Transaction Details</h5>
                         <div class="table-responsive">
@@ -154,7 +287,7 @@
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    <tr th:each="transaction : ${report.transactions}">
+                                    <tr th:each="transaction : ${transactionsPage.content}">
                                         <td>
                                             <a th:href="@{'/sales/receipt/' + ${transaction.receiptNumber}}" target="_blank" class="text-decoration-underline" style="cursor:pointer;" th:text="${transaction.receiptNumber}">000000</a>
                                         </td>
@@ -168,10 +301,143 @@
                                 </tbody>
                             </table>
                         </div>
+                        <!-- Pagination Controls -->
+                        <div class="d-flex justify-content-between align-items-center mt-3 no-print">
+                            <div>
+                                Page <span th:text="${transactionsPage.number + 1}"></span> of <span th:text="${transactionsPage.totalPages}"></span>
+                            </div>
+                            <nav>
+                                <ul class="pagination mb-0">
+                                    <li class="page-item" th:classappend="${transactionsPage.first} ? 'disabled'">
+                                        <a class="page-link"
+                                           th:href="@{/reports/sales(type=${param.type}, date=${param.date}, week=${param.week}, month=${param.month}, page=${transactionsPage.number - 1}, size=${transactionsPage.size})}">Previous</a>
+                                    </li>
+                                    <li class="page-item" th:each="i : ${#numbers.sequence(1, transactionsPage.totalPages)}"
+                                        th:classappend="${i == transactionsPage.number + 1} ? 'active'">
+                                        <a class="page-link"
+                                           th:href="@{/reports/sales(type=${param.type}, date=${param.date}, week=${param.week}, month=${param.month}, page=${i - 1}, size=${transactionsPage.size})}"
+                                           th:text="${i}"></a>
+                                    </li>
+                                    <li class="page-item" th:classappend="${transactionsPage.last} ? 'disabled'">
+                                        <a class="page-link"
+                                           th:href="@{/reports/sales(type=${param.type}, date=${param.date}, week=${param.week}, month=${param.month}, page=${transactionsPage.number + 1}, size=${transactionsPage.size})}">Next</a>
+                                    </li>
+                                </ul>
+                            </nav>
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
     </div>
 </body>
-</html> 
+</html>
+
+<!-- Chart.js CDN -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script th:inline="javascript">
+    // Sales Trend Data
+    var salesTrendLabels = /*[[${salesTrend.labels}]]*/ [];
+    var salesTrendData = /*[[${salesTrend.data}]]*/ [];
+    // Category Sales Data
+    var categoryLabels = /*[[${categorySales.labels}]]*/ [];
+    var categoryData = /*[[${categorySales.data}]]*/ [];
+    // Top Products Data
+    var topProductLabels = /*[[${topProducts.labels}]]*/ [];
+    var topProductData = /*[[${topProducts.data}]]*/ [];
+
+    // Sales Trend Line Chart
+    var ctx1 = document.getElementById('salesTrendChart').getContext('2d');
+    new Chart(ctx1, {
+        type: 'line',
+        data: {
+            labels: salesTrendLabels,
+            datasets: [{
+                label: 'Sales',
+                data: salesTrendData,
+                borderColor: '#2980b9',
+                backgroundColor: 'rgba(41,128,185,0.1)',
+                fill: true,
+                tension: 0.3
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: { legend: { display: false } },
+            scales: { y: { beginAtZero: true } }
+        }
+    });
+
+    // Category Sales Bar Chart
+    var ctx2 = document.getElementById('categorySalesChart').getContext('2d');
+    new Chart(ctx2, {
+        type: 'bar',
+        data: {
+            labels: categoryLabels,
+            datasets: [{
+                label: 'Sales by Category',
+                data: categoryData,
+                backgroundColor: '#27ae60'
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: { legend: { display: false } },
+            scales: { y: { beginAtZero: true } }
+        }
+    });
+
+    // Top Products Bar Chart
+    var ctx3 = document.getElementById('topProductsChart').getContext('2d');
+    new Chart(ctx3, {
+        type: 'bar',
+        data: {
+            labels: topProductLabels,
+            datasets: [{
+                label: 'Top Sold Products',
+                data: topProductData,
+                backgroundColor: '#f39c12'
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: { legend: { display: false } },
+            scales: { y: { beginAtZero: true } }
+        }
+    });
+</script>
+<script>
+    // Dynamic date/week/month picker
+    document.addEventListener('DOMContentLoaded', function() {
+        const typeSelect = document.getElementById('reportTypeSelect');
+        const dateInputContainer = document.getElementById('dateInputContainer');
+        function renderInput() {
+            let type = typeSelect.value;
+            let html = '';
+            if (type === 'daily') {
+                html = `<label for="dateInput" class="form-label mb-1">Date</label><input type="date" id="dateInput" name="date" class="form-control" value="${new Date().toISOString().slice(0,10)}">`;
+            } else if (type === 'weekly') {
+                html = `<label for="weekInput" class="form-label mb-1">Week</label><input type="week" id="weekInput" name="week" class="form-control" value="${getCurrentWeek()}" >`;
+            } else if (type === 'monthly') {
+                html = `<label for="monthInput" class="form-label mb-1">Month</label><input type="month" id="monthInput" name="month" class="form-control" value="${new Date().toISOString().slice(0,7)}">`;
+            }
+            dateInputContainer.innerHTML = html;
+        }
+        function getCurrentWeek() {
+            const now = new Date();
+            const onejan = new Date(now.getFullYear(),0,1);
+            const week = Math.ceil((((now - onejan) / 86400000) + onejan.getDay()+1)/7);
+            return `${now.getFullYear()}-W${week.toString().padStart(2,'0')}`;
+        }
+        typeSelect.addEventListener('change', renderInput);
+        renderInput();
+    });
+
+    // Enable Bootstrap popover for help icon
+    document.addEventListener('DOMContentLoaded', function() {
+        var popoverTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="popover"]'));
+        popoverTriggerList.map(function (popoverTriggerEl) {
+            return new bootstrap.Popover(popoverTriggerEl);
+        });
+    });
+</script> 

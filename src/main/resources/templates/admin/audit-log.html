@@ -44,7 +44,7 @@
                     <td th:text="${#temporals.format(log.timestamp.atZone(T(java.time.ZoneId).of('Asia/Manila')), 'MMMM dd, yyyy hh:mm:ss a')}"></td>
                     <td th:text="${log.username}"></td>
                     <td th:text="${log.action}"></td>
-                    <td th:text="${log.details}"></td>
+                    <td th:utext="${log.htmlDetails}"></td>
                 </tr>
             </tbody>
         </table>

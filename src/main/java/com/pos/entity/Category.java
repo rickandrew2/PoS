@@ -5,6 +5,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.AllArgsConstructor;
 import java.util.List;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 
 @Data
 @NoArgsConstructor
@@ -26,5 +27,6 @@ public class Category {
     private Boolean active = true;
 
     @OneToMany(mappedBy = "category")
+    @JsonIgnore
     private List<Product> products;
 } 

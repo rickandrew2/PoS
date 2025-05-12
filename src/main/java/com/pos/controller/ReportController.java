@@ -55,6 +55,8 @@ public class ReportController {
             @RequestParam(required = false) String date,
             @RequestParam(required = false) String week,
             @RequestParam(required = false) String month,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size,
             Model model) {
 
         LocalDateTime start = null, end = null;
@@ -96,22 +98,57 @@ public class ReportController {
         model.addAttribute("report", report);
         model.addAttribute("reportType", reportType);
 
-        // Get transactions for chart data
+        // PAGINATION: Get paged transactions for the table
+        org.springframework.data.domain.Page<Transaction> transactionsPage = transactionService.getTransactionsByDateRangePaged(start, end, org.springframework.data.domain.PageRequest.of(page, size, org.springframework.data.domain.Sort.by("transactionDate").descending()));
+        model.addAttribute("transactionsPage", transactionsPage);
+
+        // For charts and stats, use the full list
         List<Transaction> transactions = (List<Transaction>) report.get("transactions");
 
         // 1. Sales Trend Over Time
         Map<String, Double> salesTrend = new LinkedHashMap<>();
-        transactions.stream()
-            .collect(Collectors.groupingBy(
-                t -> t.getTransactionDate().toLocalDate().toString(),
-                TreeMap::new,
-                Collectors.summingDouble(t -> t.getTotalAmount().doubleValue())
-            ))
-            .forEach(salesTrend::put);
-
+        List<String> salesTrendLabels = new ArrayList<>();
+        List<Double> salesTrendValues = new ArrayList<>();
+        if ("Daily".equals(reportType)) {
+            // Group by hour for daily
+            Map<Integer, Double> hourlySales = new TreeMap<>();
+            for (int i = 0; i < 24; i++) hourlySales.put(i, 0.0);
+            for (Transaction t : transactions) {
+                int hour = t.getTransactionDate().getHour();
+                hourlySales.put(hour, hourlySales.get(hour) + t.getTotalAmount().doubleValue());
+            }
+            for (int i = 0; i < 24; i++) {
+                salesTrendLabels.add(String.format("%02d:00", i));
+                salesTrendValues.add(hourlySales.get(i));
+            }
+        } else if ("Weekly".equals(reportType)) {
+            // Group by day for weekly
+            LocalDate weekStart = (LocalDate) model.getAttribute("reportStartDate");
+            for (int i = 0; i < 7; i++) {
+                LocalDate day = weekStart.plusDays(i);
+                salesTrendLabels.add(day.toString());
+                double sum = transactions.stream()
+                    .filter(t -> t.getTransactionDate().toLocalDate().equals(day))
+                    .mapToDouble(t -> t.getTotalAmount().doubleValue()).sum();
+                salesTrendValues.add(sum);
+            }
+        } else if ("Monthly".equals(reportType)) {
+            // Group by day for monthly
+            LocalDate monthStart = (LocalDate) model.getAttribute("reportStartDate");
+            LocalDate monthEnd = (LocalDate) model.getAttribute("reportEndDate");
+            for (LocalDate day = monthStart; !day.isAfter(monthEnd); day = day.plusDays(1)) {
+                final LocalDate currentDay = day;
+                salesTrendLabels.add(currentDay.toString());
+                double sum = transactions.stream()
+                    .filter(t -> t.getTransactionDate().toLocalDate().equals(currentDay))
+                    .mapToDouble(t -> t.getTotalAmount().doubleValue()).sum();
+                salesTrendValues.add(sum);
+            }
+        }
+        for (int i = 0; i < salesTrendLabels.size(); i++) {
+            salesTrend.put(salesTrendLabels.get(i), salesTrendValues.get(i));
+        }
         Map<String, Object> salesTrendData = new HashMap<>();
-        List<String> salesTrendLabels = new ArrayList<>(salesTrend.keySet());
-        List<Double> salesTrendValues = new ArrayList<>(salesTrend.values());
         salesTrendData.put("labels", salesTrendLabels);
         salesTrendData.put("data", salesTrendValues);
         model.addAttribute("salesTrend", salesTrendData);

@@ -5,29 +5,7 @@ function getCsrfToken() {
 }
 
 // Product Management
-function editProduct(button) {
-    const productId = button.dataset.id;
-    const name = button.dataset.name;
-    const description = button.dataset.description;
-    const price = button.dataset.price;
-    const categoryId = button.dataset.category;
-    const vatable = button.dataset.vatable === 'true';
-
-    document.getElementById('productId').value = productId;
-    document.getElementById('productName').value = name;
-    document.getElementById('productDescription').value = description;
-    document.getElementById('productPrice').value = price;
-    document.getElementById('productCategory').value = categoryId;
-    document.getElementById('productVatable').checked = vatable;
-    
-    // Disable stock input for editing
-    const stockInput = document.getElementById('productStock');
-    stockInput.disabled = true;
-    stockInput.value = '';
-
-    const modal = new bootstrap.Modal(document.getElementById('productModal'));
-    modal.show();
-}
+// Deleted editProduct function
 
 // Modal-based product delete confirmation
 let productIdToDelete = null;
@@ -79,12 +57,16 @@ if (confirmDeleteBtn) {
 }
 
 function showProductAddedModal() {
+    // Close the product modal first
+    const productModalEl = document.getElementById('productModal');
+    const productModal = bootstrap.Modal.getInstance(productModalEl);
+    if (productModal) productModal.hide();
+    // Now show the success modal
     const modalEl = document.getElementById('productAddedModal');
     if (!modalEl) {
         console.error('productAddedModal not found in DOM');
         return;
     }
-    console.log('Calling showProductAddedModal()');
     const modal = new bootstrap.Modal(modalEl);
     modal.show();
     // Reload only when the modal is hidden (user closes it or after timeout)
@@ -102,123 +84,6 @@ function showProductDeletedModal() {
     const modal = new bootstrap.Modal(document.getElementById('productDeletedModal'));
     modal.show();
     setTimeout(() => location.reload(), 1500);
-}
-
-function saveProduct() {
-    const productId = document.getElementById('productId').value;
-    const product = {
-        name: document.getElementById('productName').value,
-        description: document.getElementById('productDescription').value,
-        price: parseFloat(document.getElementById('productPrice').value),
-        categoryId: document.getElementById('productCategory').value,
-        vatable: document.getElementById('productVatable').checked
-    };
-
-    // Add stockQuantity only for new products
-    if (!productId) {
-        const stockQuantity = parseInt(document.getElementById('productStock').value);
-        if (!stockQuantity || isNaN(stockQuantity)) {
-            alert('Initial stock quantity is required and must be a valid number');
-            return;
-        }
-        product.stockQuantity = stockQuantity;
-    }
-
-    // Validate required fields
-    if (!product.name || product.name.trim() === '') {
-        alert('Product name is required');
-        return;
-    }
-    if (!product.price || isNaN(product.price)) {
-        alert('Product price is required and must be a valid number');
-        return;
-    }
-    if (!product.categoryId) {
-        alert('Category is required');
-        return;
-    }
-
-    console.log('Saving product:', product);
-    const url = productId ? `/api/products/${productId}` : '/api/products';
-    const method = productId ? 'PUT' : 'POST';
-
-    // Disable the save button to prevent double submission
-    const saveButton = document.querySelector('#productModal .btn-primary');
-    if (saveButton) saveButton.disabled = true;
-
-    fetch(url, {
-        method: method,
-        headers: {
-            'Content-Type': 'application/json',
-            'X-CSRF-TOKEN': getCsrfToken()
-        },
-        body: JSON.stringify(product)
-    })
-    .then(response => {
-        if (!response.ok) {
-            return response.text().then(text => {
-                try {
-                    const error = JSON.parse(text);
-                    throw new Error(error.message || 'Error saving product');
-                } catch (e) {
-                    throw new Error(text || 'Error saving product');
-                }
-            });
-        }
-        return response.json();
-    })
-    .then(data => {
-        console.log('Product saved successfully:', data);
-        // Show the correct modal for add or edit
-        if (!productId) {
-            showProductAddedModal();
-        } else {
-            showSuccessAndReload(); // fallback for edit
-        }
-    })
-    .catch(error => {
-        console.error('Error saving product:', error);
-        if (error.message === 'Failed to fetch') {
-            const verifyUrl = productId ? `/api/products/${productId}` : `/api/products?name=${encodeURIComponent(product.name)}`;
-            fetch(verifyUrl)
-                .then(response => response.json())
-                .then(data => {
-                    if (data) {
-                        showSuccessAndReload();
-                    } else {
-                        if (saveButton) saveButton.disabled = false;
-                        alert('Failed to save product. Please try again.');
-                    }
-                })
-                .catch(() => {
-                    showSuccessAndReload();
-                });
-        } else {
-            if (saveButton) saveButton.disabled = false;
-            alert(error.message || 'Error saving product');
-        }
-    });
-}
-
-function showSuccessAndReload() {
-    // Close any open modals
-    const productModal = bootstrap.Modal.getInstance(document.getElementById('productModal'));
-    const stockModal = bootstrap.Modal.getInstance(document.getElementById('stockModal'));
-    if (productModal) productModal.hide();
-    if (stockModal) stockModal.hide();
-    // Show fallback success modal if needed
-    const successModal = document.getElementById('successModal');
-    if (successModal) {
-        const modal = new bootstrap.Modal(successModal);
-        modal.show();
-        setTimeout(() => {
-            location.reload();
-        }, 1500);
-    } else {
-        setTimeout(() => {
-            location.reload();
-        }, 1500);
-    }
 }
 
 // Category Management
@@ -579,14 +444,6 @@ document.getElementById('stockModal').addEventListener('hidden.bs.modal', functi
     document.getElementById('stockProductId').value = '';
 });
 
-// Ensure productId is cleared every time the add product modal is shown
-const productModalEl = document.getElementById('productModal');
-if (productModalEl) {
-    productModalEl.addEventListener('show.bs.modal', function () {
-        document.getElementById('productId').value = '';
-    });
-}
-
 function printInventory() {
     window.print();
 }
@@ -602,4 +459,156 @@ function downloadInventoryExcel() {
     const modalEl = document.getElementById('excelPreviewModal');
     const modal = bootstrap.Modal.getInstance(modalEl);
     if (modal) modal.hide();
+}
+
+function transferOnHoldStock(productId, event) {
+    if (!confirm('Transfer on-hold stock to main inventory for this product?')) return;
+    const button = event.target.closest('button');
+    if (button) button.disabled = true;
+    fetch(`/api/products/${productId}/transfer-on-hold`, {
+        method: 'PUT',
+        headers: {
+            'X-CSRF-TOKEN': getCsrfToken(),
+            'Content-Type': 'application/json'
+        }
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error('Failed to transfer on-hold stock');
+        }
+        return response.json();
+    })
+    .then(data => {
+        location.reload();
+    })
+    .catch(error => {
+        alert(error.message || 'Error transferring on-hold stock');
+        if (button) button.disabled = false;
+    });
+}
+
+// Add this function for Add Product button
+function addProduct() {
+    document.getElementById('productForm').reset();
+    document.getElementById('productId').value = '';
+    const stockInput = document.getElementById('productStock');
+    stockInput.value = '';
+    stockInput.disabled = false;
+    const modal = new bootstrap.Modal(document.getElementById('productModal'));
+    modal.show();
+}
+
+// Ensure productId is cleared and stock input enabled every time the add product modal is shown
+const addProductBtn = document.querySelector('button[data-bs-target="#productModal"]');
+if (addProductBtn) {
+    addProductBtn.addEventListener('click', addProduct);
+}
+
+// Remake editProduct function
+function editProduct(button) {
+    const productId = button.dataset.id;
+    const name = button.dataset.name;
+    const description = button.dataset.description;
+    const price = button.dataset.price;
+    const categoryId = button.dataset.category;
+    const vatable = button.dataset.vatable === 'true';
+    const stock = button.dataset.stock;
+
+    document.getElementById('productId').value = productId;
+    document.getElementById('productName').value = name;
+    document.getElementById('productDescription').value = description;
+    document.getElementById('productPrice').value = price;
+    document.getElementById('productCategory').value = categoryId;
+    document.getElementById('productVatable').checked = vatable;
+    const stockInput = document.getElementById('productStock');
+    stockInput.value = stock;
+    stockInput.disabled = false;
+    const modal = new bootstrap.Modal(document.getElementById('productModal'));
+    modal.show();
+}
+
+// Remake showProductEditedModal function
+function showProductEditedModal() {
+    // Close the product modal first
+    const productModalEl = document.getElementById('productModal');
+    const productModal = bootstrap.Modal.getInstance(productModalEl);
+    if (productModal) productModal.hide();
+    // Now show the success modal
+    const modalEl = document.getElementById('productEditedModal');
+    if (!modalEl) {
+        console.error('productEditedModal not found in DOM');
+        return;
+    }
+    const modal = new bootstrap.Modal(modalEl);
+    modal.show();
+    setTimeout(() => {
+        location.reload();
+    }, 1500);
+}
+
+// Remake saveProduct function
+function saveProduct() {
+    const productId = document.getElementById('productId').value;
+    const product = {
+        name: document.getElementById('productName').value,
+        description: document.getElementById('productDescription').value,
+        price: parseFloat(document.getElementById('productPrice').value),
+        categoryId: document.getElementById('productCategory').value,
+        vatable: document.getElementById('productVatable').checked,
+        active: true
+    };
+    const stockQuantity = parseInt(document.getElementById('productStock').value);
+    if (isNaN(stockQuantity)) {
+        alert('Stock quantity is required and must be a valid number');
+        return;
+    }
+    product.stockQuantity = stockQuantity;
+    if (!product.name || product.name.trim() === '') {
+        alert('Product name is required');
+        return;
+    }
+    if (!product.price || isNaN(product.price)) {
+        alert('Product price is required and must be a valid number');
+        return;
+    }
+    if (!product.categoryId) {
+        alert('Category is required');
+        return;
+    }
+    const url = productId ? `/api/products/${productId}` : '/api/products';
+    const method = productId ? 'PUT' : 'POST';
+    const saveButton = document.querySelector('#productModal .btn-primary');
+    if (saveButton) saveButton.disabled = true;
+    fetch(url, {
+        method: method,
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': getCsrfToken()
+        },
+        body: JSON.stringify(product)
+    })
+    .then(response => {
+        if (!response.ok) {
+            return response.text().then(text => {
+                try {
+                    const error = JSON.parse(text);
+                    throw new Error(error.message || 'Error saving product');
+                } catch (e) {
+                    throw new Error(text || 'Error saving product');
+                }
+            });
+        }
+        return response.json();
+    })
+    .then(data => {
+        if (!productId) {
+            showProductAddedModal();
+        } else {
+            showProductEditedModal();
+        }
+    })
+    .catch(error => {
+        if (saveButton) saveButton.disabled = false;
+        alert(error.message || 'Error saving product');
+    });
 } 
