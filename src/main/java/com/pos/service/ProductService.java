@@ -84,6 +84,15 @@ public class ProductService {
     }
 
     public Product updateProduct(Product product, String username) {
+        // Check for duplicate name (excluding this product's own ID)
+        if (productRepository.existsByName(product.getName())) {
+            Product existing = productRepository.findAll().stream()
+                .filter(p -> p.getName().equalsIgnoreCase(product.getName()) && !p.getId().equals(product.getId()))
+                .findFirst().orElse(null);
+            if (existing != null) {
+                throw new RuntimeException("Product name already exists");
+            }
+        }
         Product updated = productRepository.save(product);
         auditLogService.logProductUpdate(username, updated.getName(), updated.getId(), "Stock updated.");
         return updated;

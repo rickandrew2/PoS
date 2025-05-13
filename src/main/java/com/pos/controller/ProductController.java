@@ -9,6 +9,11 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.Authentication;
+import java.time.LocalDateTime;
+import com.pos.entity.StockRequest;
+import com.pos.repository.StockRequestRepository;
+import com.pos.service.AuditLogService;
 
 import java.util.List;
 import java.util.Map;
@@ -23,6 +28,12 @@ public class ProductController {
 
     @Autowired
     private CategoryService categoryService;
+
+    @Autowired
+    private StockRequestRepository stockRequestRepository;
+
+    @Autowired
+    private AuditLogService auditLogService;
 
     @GetMapping
     public ResponseEntity<List<Product>> getAllProducts() {
@@ -145,5 +156,36 @@ public class ProductController {
 
         String username = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication().getName();
         return ResponseEntity.ok(productService.updateProduct(product, username));
+    }
+
+    @PostMapping("/{id}/request-stock")
+    @PreAuthorize("hasAnyRole('ADMINISTRATOR', 'INVENTORY_PERSONNEL')")
+    public ResponseEntity<?> requestStock(@PathVariable Long id) {
+        return handleRequestStock(id);
+    }
+
+    @GetMapping("/{id}/request-stock")
+    @PreAuthorize("hasAnyRole('ADMINISTRATOR', 'INVENTORY_PERSONNEL')")
+    public ResponseEntity<?> requestStockGet(@PathVariable Long id) {
+        return handleRequestStock(id);
+    }
+
+    private ResponseEntity<?> handleRequestStock(Long id) {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        String username = authentication.getName();
+        Long userId = null;
+        if (authentication.getPrincipal() instanceof com.pos.security.CustomUserDetails userDetails) {
+            userId = userDetails.getUser().getId();
+        }
+        Product product = productService.getProductById(id)
+            .orElseThrow(() -> new IllegalArgumentException("Product not found"));
+        StockRequest request = new StockRequest();
+        request.setProductId(product.getId());
+        request.setProductName(product.getName());
+        request.setRequestedByUserId(userId);
+        request.setRequestedAt(LocalDateTime.now());
+        stockRequestRepository.save(request);
+        auditLogService.logAction(username, "STOCK_REQUEST", "Requested stock for product: " + product.getName() + " (ID: " + product.getId() + ")");
+        return ResponseEntity.ok().build();
     }
 } 
