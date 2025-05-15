@@ -5,7 +5,7 @@ A Spring Boot-based Point of Sale system with secure authentication and database
 ## Prerequisites
 
 Before you begin, ensure you have the following installed:
-- Java Development Kit (JDK) 17 or higher
+- Java Development Kit (JDK) 17 
 - Maven (latest version)
 - MySQL Server 8.0 or higher
 - Git
@@ -15,8 +15,8 @@ Before you begin, ensure you have the following installed:
 
 ### 1. Clone the Repository
 ```bash
-git clone [your-github-repository-url]
-cd pos-system
+git clone https://github.com/rickandrew2/PoS.git
+cd PoS
 ```
 
 ### 2. Database Setup
@@ -58,7 +58,7 @@ The application will start on `http://localhost:8080`
 
 ## Project Structure
 ```
-pos-system/
+PoS/
 ├── src/
 │   ├── main/
 │   │   ├── java/

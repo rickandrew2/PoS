@@ -48,7 +48,7 @@
         </div>
         <div class="col text-end">
             <a href="/dashboard" class="btn btn-secondary">Back to Dashboard</a>
-            <th:block th:if="${#authorization.expression('hasRole(''ADMINISTRATOR'')')}">
+            <th:block th:if="${#authorization.expression('hasRole(''ADMINISTRATOR'') or hasRole(''CASHIER'')')}">
                 <button class="btn btn-info ms-2" id="viewTransactionHistoryBtn">
                     <i class="bi bi-clock-history"></i> View Transaction History
                 </button>

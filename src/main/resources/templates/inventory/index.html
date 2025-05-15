@@ -2,6 +2,7 @@
 <html
   xmlns:th="http://www.thymeleaf.org"
   xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+  xmlns:sec="http://www.thymeleaf.org/extras/spring-security"
   layout:decorate="~{layout/main}"
 >
   <head>
@@ -371,6 +372,7 @@
                     <button
                       class="btn btn-warning"
                       onclick="openRequestStockModal()"
+                      sec:authorize="hasRole('INVENTORY_PERSONNEL')"
                     >
                       <i class="bi bi-box-arrow-in-down"></i> Request Stock
                     </button>
@@ -421,7 +423,7 @@
                     <tbody id="productsTableBody">
                       <tr
                         th:each="product : ${products}"
-                        th:classappend="${product.stockQuantity} < 50 ? 'low-stock-bg' : ''"
+                        th:classappend="${product.stockQuantity} < 50 and ${#authorization.expression('hasRole(''INVENTORY_PERSONNEL'')')} ? 'low-stock-bg' : ''"
                       >
                         <td th:text="${product.id}">1</td>
                         <td th:text="${product.name}">Product Name</td>
@@ -439,7 +441,7 @@
                             >0</span
                           >
                           <button
-                            th:if="${product.stockQuantity} < 50 and ${product.onHoldStock} > 0"
+                            th:if="${product.stockQuantity} < 50 and ${product.onHoldStock} > 0 and ${#authorization.expression('hasRole(''INVENTORY_PERSONNEL'')')}"
                             class="btn transfer-btn-inline print-hide"
                             th:onclick="'transferOnHoldStock(' + ${product.id} + ', event)'"
                             title="Transfer on-hold stock to inventory"
@@ -612,6 +614,7 @@
                     padding: 0.5em 1em;
                     max-width: 420px;
                   "
+                  sec:authorize="hasRole('INVENTORY_PERSONNEL')"
                 >
                   <span
                     class="transfer-btn-inline"
@@ -1229,6 +1232,7 @@
         tabindex="-1"
         aria-labelledby="transferOnHoldModalLabel"
         aria-hidden="true"
+        sec:authorize="hasRole('INVENTORY_PERSONNEL')"
       >
         <div class="modal-dialog modal-dialog-centered">
           <div class="modal-content">
@@ -1267,7 +1271,14 @@
       </div>
 
       <!-- Request Stock Modal -->
-      <div class="modal fade" id="requestStockModal" tabindex="-1" aria-labelledby="requestStockModalLabel" aria-hidden="true">
+      <div 
+        class="modal fade" 
+        id="requestStockModal" 
+        tabindex="-1" 
+        aria-labelledby="requestStockModalLabel" 
+        aria-hidden="true"
+        sec:authorize="hasRole('INVENTORY_PERSONNEL')"
+      >
         <div class="modal-dialog modal-dialog-centered">
           <div class="modal-content">
             <div class="modal-header">
@@ -1288,7 +1299,14 @@
       </div>
 
       <!-- Stock Request Success Modal -->
-      <div class="modal fade" id="requestStockSuccessModal" tabindex="-1" aria-labelledby="requestStockSuccessModalLabel" aria-hidden="true">
+      <div 
+        class="modal fade" 
+        id="requestStockSuccessModal" 
+        tabindex="-1" 
+        aria-labelledby="requestStockSuccessModalLabel" 
+        aria-hidden="true"
+        sec:authorize="hasRole('INVENTORY_PERSONNEL')"
+      >
         <div class="modal-dialog modal-dialog-centered">
           <div class="modal-content">
             <div class="modal-header bg-success text-white">

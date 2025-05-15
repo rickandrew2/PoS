@@ -73,12 +73,12 @@
 <body>
     <div layout:fragment="content">
         <div class="dashboard-grid">
-            <a href="/sales" class="stat-card" style="background: linear-gradient(135deg, var(--accent-color), #2980b9);">
+            <a href="/sales" class="stat-card" style="background: linear-gradient(135deg, var(--accent-color), #2980b9);" sec:authorize="hasAnyRole('ADMINISTRATOR', 'CASHIER')">
                 <div class="stat-icon">
                     <i class="fas fa-shopping-cart"></i>
                 </div>
                 <div class="stat-value" th:text="${#numbers.formatDecimal(todaysSales, 1, 2)}">₱0.00</div>
-                <div class="stat-label">Today's Sales</div>
+                <div class="stat-label">Manage Sales</div>
             </a>
 
             <a href="/inventory" class="stat-card" style="background: linear-gradient(135deg, var(--success-color), #27ae60);" sec:authorize="!hasRole('CASHIER')">
@@ -86,7 +86,7 @@
                     <i class="fas fa-box"></i>
                 </div>
                 <div class="stat-value" th:text="${totalProducts}">0</div>
-                <div class="stat-label">Total Products</div>
+                <div class="stat-label">Manage Products</div>
             </a>
 
             <a href="/users" class="stat-card" style="background: linear-gradient(135deg, #9b59b6, #8e44ad);" sec:authorize="!hasRole('CASHIER') and !hasRole('INVENTORY_PERSONNEL')">
@@ -108,7 +108,7 @@
         </div>
 
         <div class="row">
-            <div class="col-md-6 mb-4">
+            <div class="col-md-6 mb-4" sec:authorize="hasAnyRole('ADMINISTRATOR', 'CASHIER')">
                 <div class="dashboard-section">
                     <h2><i class="fas fa-chart-line"></i> Sales Reports</h2>
                     <div class="d-grid gap-3">
@@ -122,7 +122,7 @@
                 <div class="dashboard-section">
                     <h2><i class="fas fa-cog"></i> Quick Actions</h2>
                     <div class="d-grid gap-3">
-                        <a href="/sales" class="btn btn-primary">
+                        <a href="/sales" class="btn btn-primary" sec:authorize="hasAnyRole('ADMINISTRATOR', 'CASHIER')">
                             <i class="fas fa-plus me-2"></i> New Sale
                         </a>
                         <a href="/inventory" class="btn btn-success" sec:authorize="!hasRole('CASHIER')">

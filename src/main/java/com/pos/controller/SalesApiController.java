@@ -27,7 +27,7 @@ public class SalesApiController {
     private TransactionService transactionService;
 
     @GetMapping("/history")
-    @PreAuthorize("hasRole('ADMINISTRATOR')")
+    @PreAuthorize("hasRole('ADMINISTRATOR') or hasRole('CASHIER')")
     public ResponseEntity<?> getTransactionHistory(
             @RequestParam(value = "startDate", required = false)
             @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,

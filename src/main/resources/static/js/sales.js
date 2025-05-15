@@ -112,7 +112,7 @@ document.addEventListener('DOMContentLoaded', () => {
                             tbody.innerHTML += `
                                 <tr>
                                     <td>${date}</td>
-                                    <td>${receipt}</td>
+                                    <td><a href="/sales/receipt/${receipt}" target="_blank" class="text-primary text-decoration-underline" style="cursor:pointer;">${receipt}</a></td>
                                     <td>${customer}</td>
                                     <td>${total}</td>
                                     <td>${cashier}</td>
