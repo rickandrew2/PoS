@@ -5,7 +5,7 @@ A Spring Boot-based Point of Sale system with secure authentication and database
 ## Prerequisites
 
 Before you begin, ensure you have the following installed:
-- Java Development Kit (JDK) 17 or higher
+- Java Development Kit (JDK) 17
 - Maven (latest version)
 - MySQL Server 8.0 or higher
 - Git
