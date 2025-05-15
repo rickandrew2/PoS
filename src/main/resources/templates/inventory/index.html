@@ -516,6 +516,7 @@
                           <th>Name</th>
                           <th>Price</th>
                           <th>Stock</th>
+                          <th>On-Hold Stock</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -529,6 +530,7 @@
                             >
                           </td>
                           <td th:text="${product.stockQuantity}">0</td>
+                          <td th:text="${product.onHoldStock}">0</td>
                         </tr>
                       </tbody>
                     </table>
